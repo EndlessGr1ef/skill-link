@@ -1,0 +1,22 @@
+{
+  "featureId": "skill-detail-page",
+  "reviewedAt": "2026-04-09T17:37:15Z",
+  "commitId": "c26901b",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The detail page, install controls, and markdown/raw preview are all wired up, but the implementation still misses one contract-critical metadata field.",
+    "issues": [
+      {
+        "file": "src/pages/SkillDetail.tsx",
+        "line": 295,
+        "severity": "blocking",
+        "description": "VAL-DET-001 requires the detail page metadata to show an installation timestamp. This page renders `detail.scanned_at` as \"Scanned at\" and the installation rows only show the installed path, so no installation-time metadata is surfaced anywhere. Because the fetched detail/installations shape also lacks any install timestamp field, the milestone's metadata assertion is still unmet and user testing of the detail page will fail."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Fail. The skill detail page shows scan time instead of any installation timestamp, so VAL-DET-001 remains unsatisfied."
+}
