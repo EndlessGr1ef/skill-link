@@ -60,9 +60,10 @@ export interface SkillInstallation {
   symlink_target?: string;
 }
 
-export interface SkillDetail extends Skill {
+export interface SkillDetail extends Omit<Skill, "content"> {
   installations: SkillInstallation[];
-  collections: string[];
+  /** Collection IDs this skill belongs to. Available once collections milestone is complete. */
+  collections?: string[];
 }
 
 export interface SkillWithLinks {
