@@ -31,5 +31,10 @@
     }
   ],
   "appliedUpdates": [],
-  "previousRound": ".factory/validation/platform-views/user-testing/synthesis.round2.json"
+  "previousRound": ".factory/validation/platform-views/user-testing/synthesis.round2.json",
+  "orchestratorOverride": {
+    "reason": "13/14 assertions passed. VAL-PLAT-005 (platform card to detail navigation) is blocked by the pending skill-detail-page feature in the skill-detail milestone. Moved VAL-PLAT-005 fulfills to skill-detail-page and reset to pending in validation-state.json. It will be validated when the skill-detail milestone completes.",
+    "deferredAssertions": ["VAL-PLAT-005"],
+    "deferredTo": "skill-detail milestone"
+  }
 }
