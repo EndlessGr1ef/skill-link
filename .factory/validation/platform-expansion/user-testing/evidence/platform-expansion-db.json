@@ -1,0 +1,243 @@
+{
+  "dbPath": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.skillsmanage/db.sqlite",
+  "agents": [
+    {
+      "id": "amp",
+      "display_name": "Amp",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.amp/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "augment",
+      "display_name": "Augment",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.augment/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "autoclaw",
+      "display_name": "AutoClaw",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.openclaw-autoclaw/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "central",
+      "display_name": "Central Skills",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.agents/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "codebuddy",
+      "display_name": "CodeBuddy",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.codebuddy/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "codex",
+      "display_name": "Codex CLI",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.agents/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "hermes",
+      "display_name": "Hermes",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.hermes/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "junie",
+      "display_name": "Junie",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.junie/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "kilocode",
+      "display_name": "KiloCode",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.kilocode/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "kiro",
+      "display_name": "Kiro",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.kiro/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "ob1",
+      "display_name": "OB1",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.ob1/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.opencode/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "qoder",
+      "display_name": "Qoder",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.qoder/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "qwen",
+      "display_name": "Qwen",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.qwen/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "trae-cn",
+      "display_name": "Trae CN",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.trae-cn/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "windsurf",
+      "display_name": "Windsurf",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.windsurf/skills",
+      "is_detected": 1
+    },
+    {
+      "id": "workbuddy",
+      "display_name": "WorkBuddy",
+      "global_skills_dir": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.workbuddy/skills-marketplace/skills",
+      "is_detected": 1
+    }
+  ],
+  "counts": [
+    {
+      "agent_id": "aider",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "amp",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "augment",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "autoclaw",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "central",
+      "installation_count": 2
+    },
+    {
+      "agent_id": "claude-code",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "codebuddy",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "codex",
+      "installation_count": 2
+    },
+    {
+      "agent_id": "copilot",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "cursor",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "easyclaw",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "easyclaw-v2",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "factory-droid",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "gemini-cli",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "hermes",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "junie",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "kilocode",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "kiro",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "ob1",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "openclaw",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "opencode",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "qclaw",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "qoder",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "qwen",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "trae",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "trae-cn",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "windsurf",
+      "installation_count": 1
+    },
+    {
+      "agent_id": "workbuddy",
+      "installation_count": 2
+    }
+  ],
+  "workbuddyRows": [
+    {
+      "skill_id": "platform-badge-matrix",
+      "installed_path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.workbuddy/skills-marketplace/skills/platform-badge-matrix",
+      "link_type": "symlink",
+      "symlink_target": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.agents/skills/platform-badge-matrix"
+    },
+    {
+      "skill_id": "workbuddy-market-guide",
+      "installed_path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.workbuddy/skills-marketplace/skills/workbuddy-market-guide",
+      "link_type": "copy",
+      "symlink_target": null
+    }
+  ],
+  "autoclawRows": [
+    {
+      "skill_id": "platform-badge-matrix",
+      "installed_path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.openclaw-autoclaw/skills/platform-badge-matrix",
+      "link_type": "symlink",
+      "symlink_target": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.agents/skills/platform-badge-matrix"
+    }
+  ]
+}

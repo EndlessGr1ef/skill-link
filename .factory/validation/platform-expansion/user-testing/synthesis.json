@@ -1,0 +1,22 @@
+{
+  "milestone": "platform-expansion",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-PEXP-001",
+    "VAL-PEXP-002",
+    "VAL-PEXP-003",
+    "VAL-PEXP-004",
+    "VAL-PEXP-005"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null
+}

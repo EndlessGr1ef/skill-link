@@ -1,0 +1,198 @@
+{
+  "home": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac",
+  "evidenceDir": "/Users/happypeet/.factory/missions/b423615b-5be2-4e21-9bcb-221b0dbcc475/evidence/platform-expansion/platform-expansion-main",
+  "expectedCounts": {
+    "central": 2,
+    "codex": 2,
+    "claude-code": 1,
+    "cursor": 1,
+    "gemini-cli": 1,
+    "trae": 1,
+    "factory-droid": 1,
+    "junie": 1,
+    "qwen": 1,
+    "trae-cn": 1,
+    "windsurf": 1,
+    "qoder": 1,
+    "augment": 1,
+    "opencode": 1,
+    "kilocode": 1,
+    "ob1": 1,
+    "amp": 1,
+    "kiro": 1,
+    "codebuddy": 1,
+    "hermes": 1,
+    "copilot": 1,
+    "aider": 1,
+    "openclaw": 1,
+    "qclaw": 1,
+    "easyclaw": 1,
+    "easyclaw-v2": 1,
+    "autoclaw": 1,
+    "workbuddy": 2
+  },
+  "centralSkills": [
+    "platform-badge-matrix",
+    "central-orbit"
+  ],
+  "platforms": {
+    "claude-code": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.claude/skills",
+      "skills": [
+        "claude-code-fixture"
+      ]
+    },
+    "cursor": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.cursor/skills",
+      "skills": [
+        "cursor-fixture"
+      ]
+    },
+    "gemini-cli": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.gemini/skills",
+      "skills": [
+        "gemini-cli-fixture"
+      ]
+    },
+    "trae": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.trae/skills",
+      "skills": [
+        "trae-fixture"
+      ]
+    },
+    "factory-droid": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.factory/skills",
+      "skills": [
+        "factory-droid-fixture"
+      ]
+    },
+    "junie": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.junie/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "qwen": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.qwen/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "trae-cn": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.trae-cn/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "windsurf": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.windsurf/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "qoder": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.qoder/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "augment": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.augment/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "opencode": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.opencode/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "kilocode": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.kilocode/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "ob1": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.ob1/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "amp": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.amp/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "kiro": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.kiro/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "codebuddy": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.codebuddy/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "hermes": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.hermes/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "copilot": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.copilot/skills",
+      "skills": [
+        "copilot-fixture"
+      ]
+    },
+    "aider": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.aider/skills",
+      "skills": [
+        "aider-fixture"
+      ]
+    },
+    "openclaw": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.openclaw/skills",
+      "skills": [
+        "openclaw-fixture"
+      ]
+    },
+    "qclaw": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.qclaw/skills",
+      "skills": [
+        "qclaw-fixture"
+      ]
+    },
+    "easyclaw": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.easyclaw/skills",
+      "skills": [
+        "easyclaw-fixture"
+      ]
+    },
+    "easyclaw-v2": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.easyclaw-20260322-01/skills",
+      "skills": [
+        "easyclaw-v2-fixture"
+      ]
+    },
+    "autoclaw": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.openclaw-autoclaw/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)"
+      ]
+    },
+    "workbuddy": {
+      "path": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.workbuddy/skills-marketplace/skills",
+      "skills": [
+        "platform-badge-matrix (symlink -> ~/.agents/skills/platform-badge-matrix)",
+        "workbuddy-market-guide"
+      ],
+      "wrongPathDecoy": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.workbuddy/skills/wrong-path-ignored/SKILL.md"
+    }
+  }
+}

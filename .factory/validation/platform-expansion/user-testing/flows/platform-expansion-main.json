@@ -1,0 +1,200 @@
+{
+  "groupId": "platform-expansion-main",
+  "testedAt": "2026-04-12T16:43:16Z",
+  "isolation": {
+    "appUrl": "http://localhost:24202",
+    "home": "/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac",
+    "startupLog": "platform-expansion/user-testing/evidence/tauri-startup-log-tail.txt",
+    "evidenceDir": "platform-expansion/user-testing/evidence",
+    "expectedCounts": {
+      "central": 2,
+      "codex": 2,
+      "claude-code": 1,
+      "cursor": 1,
+      "gemini-cli": 1,
+      "trae": 1,
+      "factory-droid": 1,
+      "junie": 1,
+      "qwen": 1,
+      "trae-cn": 1,
+      "windsurf": 1,
+      "qoder": 1,
+      "augment": 1,
+      "opencode": 1,
+      "kilocode": 1,
+      "ob1": 1,
+      "amp": 1,
+      "kiro": 1,
+      "codebuddy": 1,
+      "hermes": 1,
+      "copilot": 1,
+      "aider": 1,
+      "openclaw": 1,
+      "qclaw": 1,
+      "easyclaw": 1,
+      "easyclaw-v2": 1,
+      "autoclaw": 1,
+      "workbuddy": 2
+    }
+  },
+  "toolsUsed": [
+    "agent-browser (browser preview check only)",
+    "ApplicationServices AXUIElement",
+    "PyObjC Quartz/ApplicationServices helper",
+    "macOS screencapture",
+    "sqlite3",
+    "Read",
+    "Execute"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-PEXP-001",
+      "title": "All discovered platforms appear in sidebar",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Launched the native Tauri app on port 24202 with the isolated fixture HOME containing all legacy and newly added platform directories, then waited for the startup scan to complete.",
+          "expected": "After startup scan, all discovered platforms should appear in the sidebar with the correct names and skill counts.",
+          "observed": "The native sidebar populated with 28 platform entries. The AX snapshot captured Aider, Amp, Augment, AutoClaw, Claude Code, CodeBuddy, Codex CLI, Copilot, Cursor, EasyClaw, EasyClaw V2, Factory Droid, Gemini CLI, Hermes, Junie, KiloCode, Kiro, OB1, OpenClaw, OpenCode, QClaw, Qoder, Qwen, Trae, Trae CN, Windsurf, WorkBuddy, and Central Skills, and every count matched the fixture manifest plus SQLite installation totals."
+        },
+        {
+          "action": "Captured the native app window and compared the sidebar state with the persisted isolated SQLite database.",
+          "expected": "Screenshot and persisted scan data should agree on the discovered platform set and count badges.",
+          "observed": "The native window screenshot showed the populated sidebar while `sidebar-ax.json` and `platform-expansion-db.json` confirmed the full 28-entry set and expected counts, including all 14 newly introduced platforms at count 1."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-expansion/user-testing/evidence/native-initial-window.png"
+        ],
+        "consoleErrors": "platform-expansion/user-testing/evidence/browser-errors.txt (empty)",
+        "network": "Browser preview console connected cleanly with only standard Vite/React dev messages in platform-expansion/user-testing/evidence/browser-console.txt.",
+        "log": "platform-expansion/user-testing/evidence/sidebar-ax.json; platform-expansion/user-testing/evidence/platform-expansion-db.json; platform-expansion/user-testing/evidence/fixture-manifest.json; platform-expansion/user-testing/evidence/tauri-startup-log-tail.txt"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PEXP-002",
+      "title": "WorkBuddy scans correct directory",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Opened the WorkBuddy platform view in the native app after the isolated startup scan.",
+          "expected": "WorkBuddy should scan `~/.workbuddy/skills-marketplace/skills/` rather than `~/.workbuddy/skills/`, and the displayed skill count should match that directory.",
+          "observed": "The WorkBuddy header showed `/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.workbuddy/skills-marketplace/skills`, and the page rendered exactly two skills: the symlinked `Platform Badge Matrix` plus the copied `WorkBuddy Market Guide`."
+        },
+        {
+          "action": "Compared the WorkBuddy UI with the isolated fixture manifest and SQLite rows.",
+          "expected": "Only files from the skills-marketplace path should be counted; the wrong-path decoy under `~/.workbuddy/skills/` should be ignored.",
+          "observed": "The fixture manifest's wrong-path decoy never appeared in the UI or database. `platform-expansion-db.json` recorded exactly two WorkBuddy installation rows under `~/.workbuddy/skills-marketplace/skills/`, proving the scanner used the corrected directory."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-expansion/user-testing/evidence/workbuddy-platform-view.png"
+        ],
+        "consoleErrors": "platform-expansion/user-testing/evidence/browser-errors.txt (empty)",
+        "network": "n/a",
+        "log": "platform-expansion/user-testing/evidence/platform-expansion-db.json; platform-expansion/user-testing/evidence/fixture-manifest.json"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PEXP-003",
+      "title": "AutoClaw is separate from WorkBuddy",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Opened the AutoClaw platform view and compared it with the neighboring WorkBuddy entry in the same native session.",
+          "expected": "AutoClaw should appear as its own sidebar entry and point to `~/.openclaw-autoclaw/skills/`, separate from WorkBuddy.",
+          "observed": "The sidebar showed AutoClaw and WorkBuddy as separate entries with different counts, and the AutoClaw header pointed to `/tmp/skills-manage-test-fixtures/platform-expansion-home-0faaa4ac/.openclaw-autoclaw/skills` while WorkBuddy remained on its marketplace path."
+        },
+        {
+          "action": "Verified the isolated SQLite rows for both agents.",
+          "expected": "AutoClaw should persist under its own agent id and should not share installation rows or paths with WorkBuddy.",
+          "observed": "`platform-expansion-db.json` showed an `autoclaw` agent detected at `~/.openclaw-autoclaw/skills` with one installation row, while WorkBuddy remained a separate `workbuddy` agent with two installation rows under `~/.workbuddy/skills-marketplace/skills`."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-expansion/user-testing/evidence/autoclaw-separate-entry.png",
+          "platform-expansion/user-testing/evidence/workbuddy-platform-view.png"
+        ],
+        "consoleErrors": "platform-expansion/user-testing/evidence/browser-errors.txt (empty)",
+        "network": "n/a",
+        "log": "platform-expansion/user-testing/evidence/platform-expansion-db.json; platform-expansion/user-testing/evidence/fixture-manifest.json"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PEXP-004",
+      "title": "New platforms have unique icons",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspected the native sidebar and Central Skills badges after loading the isolated 28-platform fixture.",
+          "expected": "Newly registered platforms should render distinct icons in the sidebar and skill-card badge surfaces rather than falling back to a single generic glyph.",
+          "observed": "The native window and Central Skills card badges rendered platform-specific silhouettes for the newly added platforms instead of a shared fallback icon, including distinct visible glyphs for Junie, Qwen, Trae CN, Windsurf, Qoder, OpenCode, and WorkBuddy/AutoClaw-related entries."
+        },
+        {
+          "action": "Supplemented the visual check by reviewing the current `PlatformIcon` source and the milestone scrutiny record.",
+          "expected": "Each new platform id should have its own SVG case in `PlatformIcon.tsx`.",
+          "observed": "`src/components/platform/PlatformIcon.tsx` defines dedicated SVG cases for junie, qwen, trae-cn, windsurf, qoder, augment, opencode, kilocode, ob1, amp, kiro, codebuddy, hermes, and autoclaw, and the scrutiny review recorded this feature as satisfying VAL-PEXP-004."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-expansion/user-testing/evidence/native-initial-window.png",
+          "platform-expansion/user-testing/evidence/central-view.png"
+        ],
+        "consoleErrors": "platform-expansion/user-testing/evidence/browser-errors.txt (empty)",
+        "network": "n/a",
+        "log": "Supplementary source review: src/components/platform/PlatformIcon.tsx and .factory/validation/platform-expansion/scrutiny/reviews/new-platform-icons-and-app-icon.json"
+      },
+      "issues": ""
+    },
+    {
+      "id": "VAL-PEXP-005",
+      "title": "App uses custom icon",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Captured the macOS Dock while the native `skills-manage` app was running from the isolated validation session.",
+          "expected": "The visible app icon surface should show a custom skills-themed icon rather than the default Tauri logo.",
+          "observed": "The full-screen Dock capture and focused crop both showed the running `skills-manage` app using a green wand/skills-themed icon, not the default Tauri icon. The cropped image includes the app tooltip over the matching Dock item."
+        },
+        {
+          "action": "Confirmed the packaged icon source used by Tauri for the app bundle.",
+          "expected": "The configured bundle icon set should point to the custom generated assets.",
+          "observed": "`src-tauri/tauri.conf.json` points the bundle to `icons/icon.icns`, `icons/icon.ico`, `icons/32x32.png`, `icons/128x128.png`, and `icons/128x128@2x.png`, and the generated icon assets (`icon-source.png`, `128x128.png`, `icon.icns`) all contain the same custom green skills/wand motif seen in the Dock capture."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "platform-expansion/user-testing/evidence/full-screen-with-dock.png",
+          "platform-expansion/user-testing/evidence/dock-skills-manage-icon.png"
+        ],
+        "consoleErrors": "platform-expansion/user-testing/evidence/browser-errors.txt (empty)",
+        "network": "n/a",
+        "log": "Supplementary bundle review: src-tauri/tauri.conf.json; src-tauri/icons/icon-source.png; src-tauri/icons/128x128.png; src-tauri/icons/icon.icns"
+      },
+      "issues": ""
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Opening the dev URL in a normal browser preview did not expose Tauri globals, so Tauri-backed state could not be trusted there for final assertions.",
+      "resolution": "Used the real native `skills-manage` window as the validation surface, with AXUIElement snapshots, screenshots, and SQLite checks as the authoritative evidence."
+    },
+    {
+      "description": "The full 28-entry sidebar could not fit legibly into a single static screenshot because the sidebar scrolls.",
+      "resolution": "Captured a representative native window screenshot, then exported the full sidebar accessibility tree and SQLite counts so every platform name and badge could still be verified."
+    },
+    {
+      "description": "The Dock icon was very small in the full-screen capture.",
+      "resolution": "Located the Dock item for `skills-manage`, then saved an additional focused crop showing the custom icon and tooltip clearly."
+    }
+  ],
+  "blockers": [],
+  "summary": "Validated all 5 platform-expansion assertions against the native Tauri app running on port 24202 with an isolated HOME fixture containing 28 platform directories. All assertions passed: the sidebar exposed the full expanded platform registry with correct counts, WorkBuddy used the marketplace path, AutoClaw remained separate, the new platforms rendered unique icons with source support in `PlatformIcon.tsx`, and the app used the custom green skills-themed icon in the Dock and bundle assets."
+}

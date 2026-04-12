@@ -1,0 +1,3 @@
+[debug] [vite] connecting...
+[debug] [vite] connected.
+[36m[info][0m %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold

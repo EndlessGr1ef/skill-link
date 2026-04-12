@@ -1,0 +1,278 @@
+{
+  "buttons": [
+    {
+      "title": "Collapse sidebar",
+      "value": ""
+    },
+    {
+      "title": "Aider 1",
+      "value": ""
+    },
+    {
+      "title": "Amp 1",
+      "value": ""
+    },
+    {
+      "title": "Augment 1",
+      "value": ""
+    },
+    {
+      "title": "AutoClaw 1",
+      "value": ""
+    },
+    {
+      "title": "Claude Code 1",
+      "value": ""
+    },
+    {
+      "title": "CodeBuddy 1",
+      "value": ""
+    },
+    {
+      "title": "Codex CLI 2",
+      "value": ""
+    },
+    {
+      "title": "Copilot 1",
+      "value": ""
+    },
+    {
+      "title": "Cursor 1",
+      "value": ""
+    },
+    {
+      "title": "EasyClaw 1",
+      "value": ""
+    },
+    {
+      "title": "EasyClaw V2 1",
+      "value": ""
+    },
+    {
+      "title": "Factory Droid 1",
+      "value": ""
+    },
+    {
+      "title": "Gemini CLI 1",
+      "value": ""
+    },
+    {
+      "title": "Hermes 1",
+      "value": ""
+    },
+    {
+      "title": "Junie 1",
+      "value": ""
+    },
+    {
+      "title": "KiloCode 1",
+      "value": ""
+    },
+    {
+      "title": "Kiro 1",
+      "value": ""
+    },
+    {
+      "title": "OB1 1",
+      "value": ""
+    },
+    {
+      "title": "OpenClaw 1",
+      "value": ""
+    },
+    {
+      "title": "OpenCode 1",
+      "value": ""
+    },
+    {
+      "title": "QClaw 1",
+      "value": ""
+    },
+    {
+      "title": "Qoder 1",
+      "value": ""
+    },
+    {
+      "title": "Qwen 1",
+      "value": ""
+    },
+    {
+      "title": "Trae 1",
+      "value": ""
+    },
+    {
+      "title": "Trae CN 1",
+      "value": ""
+    },
+    {
+      "title": "Windsurf 1",
+      "value": ""
+    },
+    {
+      "title": "WorkBuddy 2",
+      "value": ""
+    },
+    {
+      "title": "Central Skills 2",
+      "value": ""
+    },
+    {
+      "title": "Import Collection",
+      "value": ""
+    },
+    {
+      "title": "New Collection",
+      "value": ""
+    },
+    {
+      "title": "+ New",
+      "value": ""
+    },
+    {
+      "title": "Settings",
+      "value": ""
+    },
+    {
+      "title": "Refresh central skills",
+      "value": ""
+    },
+    {
+      "title": "View details for Platform Badge Matrix",
+      "value": ""
+    },
+    {
+      "title": "View details for Platform Badge Matrix",
+      "value": ""
+    },
+    {
+      "title": "Install Platform Badge Matrix to platforms",
+      "value": ""
+    },
+    {
+      "title": "View details for Central Orbit",
+      "value": ""
+    },
+    {
+      "title": "View details for Central Orbit",
+      "value": ""
+    },
+    {
+      "title": "Install Central Orbit to platforms",
+      "value": ""
+    }
+  ],
+  "sidebarButtons": [
+    {
+      "title": "Aider 1",
+      "value": ""
+    },
+    {
+      "title": "Amp 1",
+      "value": ""
+    },
+    {
+      "title": "Augment 1",
+      "value": ""
+    },
+    {
+      "title": "AutoClaw 1",
+      "value": ""
+    },
+    {
+      "title": "Claude Code 1",
+      "value": ""
+    },
+    {
+      "title": "CodeBuddy 1",
+      "value": ""
+    },
+    {
+      "title": "Codex CLI 2",
+      "value": ""
+    },
+    {
+      "title": "Copilot 1",
+      "value": ""
+    },
+    {
+      "title": "Cursor 1",
+      "value": ""
+    },
+    {
+      "title": "EasyClaw 1",
+      "value": ""
+    },
+    {
+      "title": "EasyClaw V2 1",
+      "value": ""
+    },
+    {
+      "title": "Factory Droid 1",
+      "value": ""
+    },
+    {
+      "title": "Gemini CLI 1",
+      "value": ""
+    },
+    {
+      "title": "Hermes 1",
+      "value": ""
+    },
+    {
+      "title": "Junie 1",
+      "value": ""
+    },
+    {
+      "title": "KiloCode 1",
+      "value": ""
+    },
+    {
+      "title": "Kiro 1",
+      "value": ""
+    },
+    {
+      "title": "OB1 1",
+      "value": ""
+    },
+    {
+      "title": "OpenClaw 1",
+      "value": ""
+    },
+    {
+      "title": "OpenCode 1",
+      "value": ""
+    },
+    {
+      "title": "QClaw 1",
+      "value": ""
+    },
+    {
+      "title": "Qoder 1",
+      "value": ""
+    },
+    {
+      "title": "Qwen 1",
+      "value": ""
+    },
+    {
+      "title": "Trae 1",
+      "value": ""
+    },
+    {
+      "title": "Trae CN 1",
+      "value": ""
+    },
+    {
+      "title": "Windsurf 1",
+      "value": ""
+    },
+    {
+      "title": "WorkBuddy 2",
+      "value": ""
+    },
+    {
+      "title": "Central Skills 2",
+      "value": ""
+    }
+  ]
+}
