@@ -1,0 +1,15 @@
+{
+  "featureId": "expand-platform-registry",
+  "reviewedAt": "2026-04-12T16:13:08Z",
+  "commitId": "058dc5b",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The feature expands `builtin_agents()` to 28 built-ins, corrects WorkBuddy to `~/.workbuddy/skills-marketplace/skills`, adds AutoClaw as a separate `autoclaw` entry, and backs the changes with regression tests for the special-case directories and agent counts. I did not find a correctness gap against VAL-PEXP-001 through VAL-PEXP-003 in the reviewed code or current source state.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Pass. Commit `058dc5b` correctly registers the expanded platform set and preserves the WorkBuddy/AutoClaw edge cases with regression coverage."
+}
