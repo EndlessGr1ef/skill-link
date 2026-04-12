@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { X } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 
@@ -114,6 +115,7 @@ function DialogClose({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  const { t } = useTranslation()
   return (
     <DialogPrimitive.Close
       data-slot="dialog-close"
@@ -124,7 +126,7 @@ function DialogClose({
       {...props}
     >
       <X className="size-4" />
-      <span className="sr-only">Close</span>
+      <span className="sr-only">{t("common.close")}</span>
     </DialogPrimitive.Close>
   )
 }

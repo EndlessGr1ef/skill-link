@@ -118,7 +118,7 @@ export function InstallDialog({
           </DialogDescription>
 
           {/* Platform checkboxes */}
-          <div className="space-y-2.5" role="group" aria-label="Select platforms">
+          <div className="space-y-2.5" role="group" aria-label={t("installDialog.selectPlatforms")}>
             {targetAgents.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {t("installDialog.noPlatforms")}

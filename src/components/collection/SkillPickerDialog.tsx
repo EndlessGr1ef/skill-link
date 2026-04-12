@@ -134,7 +134,7 @@ export function SkillPickerDialog({
           <div
             className="max-h-64 overflow-y-auto space-y-1.5 border border-border rounded-md p-2"
             role="group"
-            aria-label="Select skills"
+            aria-label={t("skillPicker.selectSkills")}
           >
             {isLoading ? (
               <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground text-sm">

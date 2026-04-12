@@ -105,7 +105,7 @@ export function CollectionPickerDialog({
             <div
               className="max-h-60 overflow-y-auto space-y-1 border border-border rounded-md p-2"
               role="group"
-              aria-label="Select collections"
+              aria-label={t("collectionPicker.selectCollections")}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center py-6 gap-2 text-muted-foreground text-sm">

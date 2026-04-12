@@ -74,6 +74,7 @@
     "notDetected": "(not detected)",
     "confirmInstall": "Install to {{count}} platform{{count, select, 1 {} other {s}}}",
     "selectPlatform": "Please select at least one platform.",
+    "selectPlatforms": "Select platforms",
     "cancel": "Cancel",
     "installing": "Installing..."
   },
@@ -153,7 +154,8 @@
     "cancel": "Cancel",
     "install": "Install to {{count}} platform{{count, select, 1 {} other {s}}}",
     "installing": "Installing...",
-    "selectPlatform": "Please select at least one platform."
+    "selectPlatform": "Please select at least one platform.",
+    "selectPlatforms": "Select platforms"
   },
   "collectionPicker": {
     "title": "Add to Collection",
@@ -165,7 +167,8 @@
     "cancel": "Cancel",
     "adding": "Adding...",
     "add": "Add",
-    "addCount": "Add ({{count}})"
+    "addCount": "Add ({{count}})",
+    "selectCollections": "Select collections"
   },
   "skillPicker": {
     "title": "Add Skill",
@@ -178,7 +181,8 @@
     "cancel": "Cancel",
     "adding": "Adding...",
     "addCount": "Add {{count}} Skill{{count, select, 1 {} other {s}}}",
-    "add": "Add Skill"
+    "add": "Add Skill",
+    "selectSkills": "Select skills"
   },
   "settings": {
     "title": "Settings",
