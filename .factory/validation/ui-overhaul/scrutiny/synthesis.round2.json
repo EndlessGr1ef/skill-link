@@ -1,7 +1,7 @@
 {
   "milestone": "ui-overhaul",
-  "round": 3,
-  "status": "pass",
+  "round": 2,
+  "status": "fail",
   "validatorsRun": {
     "test": {
       "passed": true,
@@ -31,26 +31,28 @@
   },
   "reviewsSummary": {
     "total": 1,
-    "passed": 1,
-    "failed": 0,
-    "failedFeatures": []
+    "passed": 0,
+    "failed": 1,
+    "failedFeatures": [
+      "fix-i18n-persistence-and-coverage"
+    ]
   },
-  "blockingIssues": [],
-  "appliedUpdates": [
+  "blockingIssues": [
     {
-      "target": "library",
-      "description": "Documented in `.factory/library/environment.md` that worker shells may not have `pnpm` on PATH and that `bun run --cwd /Users/happypeet/Documents/GitHubMe/skills-manage <script>` works as the validator fallback for package scripts.",
-      "sourceFeature": "scrutiny-validator-ui-overhaul"
+      "featureId": "fix-i18n-persistence-and-coverage",
+      "severity": "blocking",
+      "description": "The follow-up i18n audit is still incomplete. Hardcoded English accessibility labels remain in `InstallDialog`, `CollectionInstallDialog`, `SkillPickerDialog`, `CollectionPickerDialog`, and the shared dialog close button, so Chinese mode still leaks untranslated screen-reader text outside the locale resources."
     }
   ],
+  "appliedUpdates": [],
   "suggestedGuidanceUpdates": [
     {
       "target": "skills",
       "suggestion": "Update the scrutiny review/validator procedure so Task-spawned `scrutiny-feature-reviewer` subagents can run with automatic execution approval in this worker environment, or provide a documented manual-review fallback.",
-      "evidence": "In this ui-overhaul re-run, the Task invocation for `fix-i18n-remaining-aria-and-glossary` again exited with `Exec ended early: insufficient permission to proceed`, so the validator had to review the fix manually from the commit diff and current source state instead of using the required reviewer subagent.",
+      "evidence": "In this ui-overhaul re-run, the Task invocation for `fix-i18n-persistence-and-coverage` again exited with `Exec ended early: insufficient permission to proceed`, so the validator had to review the fix manually from the commit diff and current source state instead of using the required reviewer subagent.",
       "isSystemic": true
     }
   ],
   "rejectedObservations": [],
-  "previousRound": ".factory/validation/ui-overhaul/scrutiny/synthesis.round2.json"
+  "previousRound": ".factory/validation/ui-overhaul/scrutiny/synthesis.round1.json"
 }

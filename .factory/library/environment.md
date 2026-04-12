@@ -16,3 +16,4 @@
 - On macOS, symlinks work natively; on Windows use `junction` type.
 - Tauri dev server runs on port 24200 (custom, to avoid conflicts with other services).
 - The `reference/` directory is in .gitignore — it is not part of the project source.
+- In worker shells, `pnpm` may be unavailable even though the repo is pnpm-based; `bun run --cwd /Users/happypeet/Documents/GitHubMe/skills-manage <script>` works as a fallback for package-script validators (`test`, `typecheck`, `lint`).

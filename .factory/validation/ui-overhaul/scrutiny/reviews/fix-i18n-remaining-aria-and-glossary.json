@@ -1,0 +1,15 @@
+{
+  "featureId": "fix-i18n-remaining-aria-and-glossary",
+  "reviewedAt": "2026-04-12T13:48:20Z",
+  "commitId": "472e874",
+  "transcriptSkeletonReviewed": false,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The follow-up fix closes the remaining translation gap from `fix-i18n-persistence-and-coverage`: the dialog group labels and shared close control now read from locale keys, and the previously flagged English noun `skills` has been removed from the two Chinese Settings descriptions.",
+    "issues": []
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": "fix-i18n-persistence-and-coverage",
+  "summary": "Pass. Commit `472e874` resolves the remaining ui-overhaul i18n blockers by routing the last hardcoded accessibility labels through `t()` and normalizing the flagged Chinese glossary entries."
+}
