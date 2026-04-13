@@ -1,0 +1,78 @@
+{
+  "featureId": "catppuccin-exact-colors-and-accent-picker",
+  "milestone": "catppuccin-alignment",
+  "reviewDate": "2026-04-13",
+  "verdict": "pass",
+  "summary": "Feature implementation is thorough and accurate. All oklch() values replaced with exact Catppuccin hex values matching the official Obsidian Catppuccin theme (v0.4.47). Accent color system with 14 configurable accents is fully implemented with CSS custom properties, themeStore persistence, accent picker UI, and comprehensive i18n. All 402 tests pass.",
+  "checks": [
+    {
+      "item": "oklch() values fully replaced with exact Catppuccin hex values",
+      "status": "pass",
+      "detail": "No oklch() references remain in src/ directory. All 4 flavors (Mocha, Macchiato, Frappé, Latte) use exact hex values verified against the official Obsidian Catppuccin theme.css reference file."
+    },
+    {
+      "item": "14 named color CSS custom properties defined per flavor",
+      "status": "pass",
+      "detail": "All 14 accent colors (rosewater, flamingo, pink, mauve, red, maroon, peach, yellow, green, teal, sky, sapphire, blue, lavender) plus all text/subtext/overlay/surface/base/mantle/crust colors are defined as --ctp-* CSS custom properties in each [data-theme='...'] block."
+    },
+    {
+      "item": "Semantic token mappings match spec",
+      "status": "pass",
+      "detail": "All semantic tokens correctly mapped: background→base, foreground→text, card→mantle, primary→accent (lavender default), secondary→surface0, muted→surface1, accent→surface2, destructive→red, border→surface0/1, input→surface0, ring→accent, sidebar→mantle. Latte correctly uses surface1 for border and base for primary-foreground."
+    },
+    {
+      "item": "data-accent attribute mechanism for accent color override",
+      "status": "pass",
+      "detail": "All 14 [data-accent='...'] selectors override --primary, --ring, --sidebar-primary, --sidebar-ring to the corresponding --ctp-* color. Correctly does NOT override --primary-foreground or --sidebar-primary-foreground, preserving contrast."
+    },
+    {
+      "item": "themeStore accent state and localStorage persistence",
+      "status": "pass",
+      "detail": "themeStore has accent state (default: lavender), setAccent action, localStorage persistence (catppuccin-accent key), reads stored accent on init, invalid values gracefully handled. 23 themeStore tests cover all accent functionality."
+    },
+    {
+      "item": "Accent picker UI in Settings",
+      "status": "pass",
+      "detail": "14 circular swatches using var(--ctp-*) for background color (resolves per-flavor). Uses role='radiogroup'/'radio', aria-checked, aria-label. Active swatch has ring-2 ring-ring with offset. Calls setAccent on click. Droplets icon used."
+    },
+    {
+      "item": "i18n keys for all 14 color names",
+      "status": "pass",
+      "detail": "Both zh.json and en.json have settings.accentColor label and settings.accent.{name} for all 14 colors. Chinese translations use consistent terminology (玫瑰水, 火烈鸟, 粉色, 紫色, 红色, 栗色, 桃色, 黄色, 绿色, 青色, 天蓝, 蓝宝石, 蓝色, 薰衣草)."
+    },
+    {
+      "item": "Flavor dot colors updated",
+      "status": "pass",
+      "detail": "FLAVOR_COLORS in SettingsView uses exact Lavender hex per flavor: Mocha #b4befe, Macchiato #b7bdf8, Frappé #babbf1, Latte #7287fd."
+    },
+    {
+      "item": "Dark mode uses data-theme, NOT .dark class",
+      "status": "pass",
+      "detail": "@custom-variant dark maps to [data-theme='mocha'|'macchiato'|'frappe'] selectors. No .dark class usage in CSS. shadcn/ui components' dark: variants correctly resolve via the custom variant."
+    },
+    {
+      "item": "No hardcoded green/sage theme remnants",
+      "status": "pass",
+      "detail": "No bg-green-*, text-green-*, border-green-* Tailwind classes in app code. No #4ade80, #22c55e, #16a34a (old green accent) hex values."
+    }
+  ],
+  "issues": [
+    {
+      "severity": "non_blocking",
+      "description": "CollectionInstallDialog.tsx and DiscoverConfigDialog.tsx use hardcoded Tailwind amber-* colors (text-amber-600, dark:text-amber-400, bg-amber-50, dark:bg-amber-950/20) for warning states instead of Catppuccin semantic tokens (--ctp-peach or --ctp-yellow). This is a minor inconsistency in strict Catppuccin alignment but acceptable since amber is commonly used for warning indicators.",
+      "suggestedFix": "Replace amber-* classes with semantic Catppuccin tokens: e.g., text-amber-600 → text-[var(--ctp-peach)], dark:text-amber-400 is unnecessary since --ctp-peach already adapts per flavor."
+    },
+    {
+      "severity": "non_blocking",
+      "description": "FLAVOR_COLORS in SettingsView.tsx uses hardcoded hex values for flavor preview dots instead of CSS custom properties. Since these are Lavender (default accent) per flavor, they could use var(--ctp-lavender) instead, which would automatically update if the accent is changed.",
+      "suggestedFix": "Use style={{ backgroundColor: 'var(--ctp-lavender)' }} for flavor dots instead of the FLAVOR_COLORS lookup. This makes the dots automatically use each flavor's Lavender color from CSS."
+    }
+  ],
+  "sharedStateObservations": [
+    {
+      "category": "library",
+      "observation": "Catppuccin theme uses @custom-variant dark to map Tailwind's dark: modifier to [data-theme='mocha'|'macchiato'|'frappe'] selectors. shadcn/ui components rely on dark: variants, which work correctly with this mapping. Any new shadcn/ui component additions will automatically work with the Catppuccin theme system.",
+      "confidence": "high"
+    }
+  ]
+}

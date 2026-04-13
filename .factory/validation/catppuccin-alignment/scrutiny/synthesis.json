@@ -1,0 +1,27 @@
+{
+  "milestone": "catppuccin-alignment",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "pnpm test", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "pnpm typecheck", "exitCode": 0 },
+    "lint": { "passed": true, "command": "pnpm lint", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Documented Catppuccin theme's @custom-variant dark mapping pattern: Tailwind dark: modifier maps to [data-theme='mocha'|'macchiato'|'frappe'] selectors, ensuring shadcn/ui components work correctly with the 4-flavor system.",
+      "sourceFeature": "catppuccin-exact-colors-and-accent-picker"
+    }
+  ],
+  "suggestedGuidanceUpdates": [],
+  "rejectedObservations": [],
+  "previousRound": null
+}

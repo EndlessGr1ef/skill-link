@@ -83,7 +83,11 @@ User clicks "Install to..." on a Central Skill
 
 Each flavor maps 26 Catppuccin colors (Rosewater, Flamingo, Pink, Mauve, Red, Maroon, Peach, Yellow, Green, Teal, Sky, Sapphire, Blue, Lavender, Text, Subtext1, Subtext0, Overlay2, Overlay1, Overlay0, Surface2, Surface1, Surface0, Base, Mantle, Crust) to the shadcn/ui semantic tokens (background, foreground, card, primary, secondary, muted, accent, border, etc.).
 
-**Implementation** — CSS custom properties per `[data-theme="mocha"]`, `[data-theme="frappe"]`, `[data-theme="macchiato"]`, `[data-theme="latte"]` selector. `themeStore` (Zustand) manages current flavor, persisted to localStorage. Setting `document.documentElement.dataset.theme` triggers instant color swap. Accent color is Green for all flavors (Catppuccin's Green: Mocha #a6e3a1, Latte #40a02b, etc.).
+**Implementation** — CSS custom properties per `[data-theme="mocha"]`, `[data-theme="frappe"]`, `[data-theme="macchiato"]`, `[data-theme="latte"]` selector. `themeStore` (Zustand) manages current flavor, persisted to localStorage. Setting `document.documentElement.dataset.theme` triggers instant color swap.
+
+**Accent color** — Configurable accent (default Lavender) via `[data-accent="..."]` attribute on `<html>`. 14 accent options (rosewater, flamingo, pink, mauve, red, maroon, peach, yellow, green, teal, sky, sapphire, blue, lavender). Each accent selector overrides `--primary`, `--ring`, `--sidebar-primary`, `--sidebar-ring` to the corresponding `--ctp-*` named color. The accent is persisted to localStorage (`catppuccin-accent` key).
+
+**Dark variant mapping** — Tailwind's `dark:` modifier is mapped via `@custom-variant dark (&:is([data-theme='mocha'] *, [data-theme='macchiato'] *, [data-theme='frappe'] *));` so that shadcn/ui components using `dark:` variants work correctly with the 4-flavor system. Latte (light) is excluded from the dark variant.
 
 ## Invariants
 
