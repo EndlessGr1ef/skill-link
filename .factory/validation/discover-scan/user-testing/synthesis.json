@@ -1,0 +1,36 @@
+{
+  "milestone": "discover-scan",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 8,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-DISC-001",
+    "VAL-DISC-002",
+    "VAL-DISC-003",
+    "VAL-DISC-004",
+    "VAL-DISC-005",
+    "VAL-DISC-006",
+    "VAL-DISC-008",
+    "VAL-CROSS-008"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-DISC-007",
+      "reason": "On a fresh isolated stop-scan fixture, pressing `Re-scan` → `Start Scan` never exposed an accessible `Stop & Show Results` control before the scan completed with both `quick-project` and `zzzz-late-project` results, so the user cannot stop an active scan and keep partial results."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Documented that WKWebView-backed Discover search fields may require Quartz `CGEventPostToPid(...)` to the Tauri app PID when direct `AXValue` updates do not trigger React `onChange`.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "project_name": "quick-project",
+    "name": "Quick Stabilize",
+    "platform_id": "claude-code",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-stop-slow/projects/quick-project/.claude/skills/stabilize"
+  },
+  {
+    "project_name": "zzzz-late-project",
+    "name": "Late Review",
+    "platform_id": "cursor",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-stop-slow/Documents/zzzz-late-project/.cursor/skills/late-review"
+  }
+]

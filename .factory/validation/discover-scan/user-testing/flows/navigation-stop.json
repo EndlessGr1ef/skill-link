@@ -1,0 +1,52 @@
+{
+  "groupId": "navigation-stop",
+  "testedAt": "2026-04-13T00:53:20.389980+00:00",
+  "isolation": {
+    "appUrl": "http://localhost:24204/discover",
+    "home": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-stop-slow",
+    "startupLog": "evidence/navigation-stop/stop-startup-log.txt",
+    "evidenceDir": "evidence/navigation-stop"
+  },
+  "toolsUsed": [
+    "Execute",
+    "ApplicationServices AXUIElement",
+    "macOS screencapture",
+    "sqlite3"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-DISC-007",
+      "title": "Stop scan in progress",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Launched a fresh isolated fixture with zero cached discovered rows, opened `Re-scan`, and pressed `Start Scan` against a slowed-down filesystem tree containing an early `quick-project` skill and a delayed `zzzz-late-project` skill.",
+          "expected": "While the scan was active, the real user surface should expose a `Stop & Show Results` control so the user can stop the scan and keep only the partial results found so far.",
+          "observed": "No `Stop & Show Results` control or progress text ever became accessible on the real user surface during the scan attempt, even though the scan completed and discovered both projects."
+        },
+        {
+          "action": "Inspected the isolated SQLite database after the scan attempt and captured the resulting Discover page.",
+          "expected": "Stopping early should leave only partial results (the early project) visible after the stop action.",
+          "observed": "The database contained both `quick-project` and `zzzz-late-project`, and the Discover page showed `2 skills across 2 projects`, confirming the scan ran to completion instead of exposing a working stop/partial-results flow."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "evidence/navigation-stop/scan-stop-attempt-full-results.png"
+        ],
+        "consoleErrors": "n/a for native-window capture",
+        "network": "n/a",
+        "log": "evidence/navigation-stop/stop-scan-diagnostic.json; evidence/navigation-stop/stop-scan-db.json; evidence/navigation-stop/stop-startup-log.txt"
+      },
+      "issues": "The active scan could not be interrupted from the real user surface; the stop control never became accessible before the full scan finished."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "The Discover scan was run through the native Tauri window because the browser preview does not expose Tauri globals.",
+      "resolution": "Used isolated native-window AX automation plus SQLite inspection to verify the stop-scan contract on the real user surface."
+    }
+  ],
+  "blockers": [],
+  "summary": "VAL-DISC-007 failed in the isolated stop-scan fixture: starting a scan never surfaced an accessible `Stop & Show Results` control, and the scan completed with both projects discovered instead of allowing the user to stop early and keep partial results."
+}

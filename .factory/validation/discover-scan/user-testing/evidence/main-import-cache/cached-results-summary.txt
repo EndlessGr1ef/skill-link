@@ -1,0 +1,3 @@
+Restarted isolated app on http://localhost:24203/discover without clicking Re-scan.
+AX tree exposed `6 skills across 5 projects` and `Already in Central` immediately on load.
+The isolated SQLite cache still contained the six discovered project skills from the previous scan.

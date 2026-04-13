@@ -1,0 +1,41 @@
+{
+  "skills": [
+    {
+      "name": "Alpha Deploy",
+      "canonical_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/.agents/skills/deploy",
+      "is_central": 1
+    }
+  ],
+  "discovered": [
+    {
+      "project_name": "alpha-app",
+      "name": "Alpha Deploy",
+      "platform_id": "claude-code"
+    },
+    {
+      "project_name": "alpha-app",
+      "name": "Alpha Review",
+      "platform_id": "cursor"
+    },
+    {
+      "project_name": "beta-service",
+      "name": "Beta Audit",
+      "platform_id": "factory-droid"
+    },
+    {
+      "project_name": "delta-lab",
+      "name": "Delta Benchmark",
+      "platform_id": "trae"
+    },
+    {
+      "project_name": "epsilon-kit",
+      "name": "Epsilon Analyze",
+      "platform_id": "qwen"
+    },
+    {
+      "project_name": "gamma-suite",
+      "name": "Gamma Translate",
+      "platform_id": "gemini-cli"
+    }
+  ]
+}

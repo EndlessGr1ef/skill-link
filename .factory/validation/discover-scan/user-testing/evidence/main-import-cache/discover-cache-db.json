@@ -1,0 +1,38 @@
+[
+  {
+    "project_name": "alpha-app",
+    "name": "Alpha Deploy",
+    "platform_id": "claude-code",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/projects/alpha-app/.claude/skills/deploy"
+  },
+  {
+    "project_name": "alpha-app",
+    "name": "Alpha Review",
+    "platform_id": "cursor",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/projects/alpha-app/.cursor/skills/review"
+  },
+  {
+    "project_name": "beta-service",
+    "name": "Beta Audit",
+    "platform_id": "factory-droid",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/projects/beta-service/.factory/skills/audit"
+  },
+  {
+    "project_name": "delta-lab",
+    "name": "Delta Benchmark",
+    "platform_id": "trae",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/Documents/Lab/delta-lab/.trae/skills/benchmark"
+  },
+  {
+    "project_name": "epsilon-kit",
+    "name": "Epsilon Analyze",
+    "platform_id": "qwen",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/Developer/epsilon-kit/.qwen/skills/analyze"
+  },
+  {
+    "project_name": "gamma-suite",
+    "name": "Gamma Translate",
+    "platform_id": "gemini-cli",
+    "dir_path": "/tmp/skills-manage-test-fixtures/discover-scan-home-dc927f96-main/Documents/Clients/gamma-suite/.gemini/skills/translate"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "initialDiscoveredRows": 0,
+  "attemptedFlow": [
+    "Pressed Re-scan",
+    "Pressed Start Scan",
+    "Polled the accessibility tree for a 'Stop & Show Results' control for 60 seconds"
+  ],
+  "stopButtonObserved": false,
+  "progressTextObserved": null,
+  "finalDiscoveredRows": 2,
+  "finalProjects": [
+    "quick-project",
+    "zzzz-late-project"
+  ],
+  "note": "The scan completed with both projects discovered before any stop control became visible or accessible on the real user surface."
+}

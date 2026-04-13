@@ -1,0 +1,13 @@
+
+> skills-manage@0.1.0 tauri /Users/happypeet/Documents/GitHubMe/skills-manage
+> tauri dev --no-watch -c '{"build":{"beforeDevCommand":"pnpm exec vite --port 24203","devUrl":"http://localhost:24203/discover"}}'
+
+     Running BeforeDevCommand (`pnpm exec vite --port 24203`)
+
+  [32m[1mVITE[22m v6.4.2[39m  [2mready in [0m[1m223[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m24203[22m/[39m
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`dev` profile [unoptimized + debuginfo]]8;;\ target(s) in 0.60s
+[1m[92m     Running[0m `target/debug/skills-manage`
+2026-04-13 08:38:57.327 skills-manage[26374:9369177] error messaging the mach port for IMKCFRunLoopWakeUpReliable
