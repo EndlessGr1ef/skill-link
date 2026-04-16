@@ -44,8 +44,19 @@ import { usePlatformStore } from "../stores/platformStore";
 // ─── Mock react-markdown ──────────────────────────────────────────────────────
 
 vi.mock("react-markdown", () => ({
-  default: ({ children }: { children: string }) => (
-    <div data-testid="react-markdown">{children}</div>
+  default: ({
+    children,
+    remarkPlugins,
+  }: {
+    children: string;
+    remarkPlugins?: unknown[];
+  }) => (
+    <div
+      data-testid="react-markdown"
+      data-has-remark-gfm={remarkPlugins && remarkPlugins.length > 0 ? "true" : "false"}
+    >
+      {children}
+    </div>
   ),
 }));
 
@@ -108,6 +119,10 @@ const mockContent =
 const mockLoadDetail = vi.fn();
 const mockInstallSkill = vi.fn();
 const mockUninstallSkill = vi.fn();
+const mockLoadCachedExplanation = vi.fn();
+const mockGenerateExplanation = vi.fn();
+const mockRefreshExplanation = vi.fn();
+const mockCleanupExplanationListeners = vi.fn();
 const mockReset = vi.fn();
 const mockRescan = vi.fn();
 
@@ -118,9 +133,18 @@ function buildDetailStoreState(overrides = {}) {
     isLoading: false,
     installingAgentId: null,
     error: null,
+    explanation: null,
+    isExplanationLoading: false,
+    isExplanationStreaming: false,
+    explanationError: null,
+    explanationErrorInfo: null,
     loadDetail: mockLoadDetail,
+    loadCachedExplanation: mockLoadCachedExplanation,
+    generateExplanation: mockGenerateExplanation,
+    refreshExplanation: mockRefreshExplanation,
     installSkill: mockInstallSkill,
     uninstallSkill: mockUninstallSkill,
+    cleanupExplanationListeners: mockCleanupExplanationListeners,
     reset: mockReset,
     ...overrides,
   };
@@ -327,12 +351,25 @@ describe("SkillDetail", () => {
     expect(screen.getByRole("tab", { name: /原始源码/i })).toBeInTheDocument();
   });
 
+  it("shows AI Explanation tab button", () => {
+    renderSkillDetail();
+    expect(screen.getByRole("tab", { name: /AI 解释/i })).toBeInTheDocument();
+  });
+
   it("renders markdown content by default in Markdown tab", () => {
     renderSkillDetail();
     // The mock ReactMarkdown renders its children as-is
     const markdownPane = screen.getByRole("tabpanel", { name: /Markdown/i });
     expect(markdownPane).toBeInTheDocument();
     expect(screen.getByTestId("react-markdown")).toBeInTheDocument();
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-has-remark-gfm", "true");
+  });
+
+  it("strips frontmatter in Markdown tab", () => {
+    renderSkillDetail();
+    const markdown = screen.getByTestId("react-markdown");
+    expect(markdown).toHaveTextContent("# Frontend Design");
+    expect(markdown).not.toHaveTextContent("name: frontend-design");
   });
 
   it("switches to raw source tab when Raw Source is clicked", async () => {
@@ -353,6 +390,248 @@ describe("SkillDetail", () => {
       expect(rawPane).toHaveTextContent("---");
       expect(rawPane).toHaveTextContent("name: frontend-design");
     });
+  });
+
+  it("loads cached explanation when content is available", async () => {
+    renderSkillDetail();
+    await waitFor(() => {
+      expect(mockLoadCachedExplanation).toHaveBeenCalledWith("frontend-design", "zh");
+    });
+  });
+
+  it("shows cached AI explanation in AI Explanation tab", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: "这是缓存的技能解释。",
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+    await waitFor(() => {
+      expect(screen.getByText("这是缓存的技能解释。")).toBeInTheDocument();
+    });
+  });
+
+  it("calls generateExplanation from empty AI Explanation tab", async () => {
+    renderSkillDetail();
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+    fireEvent.click(screen.getByRole("button", { name: /生成解释/i }));
+    await waitFor(() => {
+      expect(mockGenerateExplanation).toHaveBeenCalledWith("frontend-design", mockContent, "zh");
+    });
+  });
+
+  it("calls refreshExplanation when cached explanation exists", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: "这是缓存的技能解释。",
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+    fireEvent.click(screen.getByRole("button", { name: /重新生成/i }));
+    await waitFor(() => {
+      expect(mockRefreshExplanation).toHaveBeenCalledWith("frontend-design", mockContent, "zh");
+    });
+  });
+
+  it("shows explanation loading state while a request is in flight", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: null,
+        isExplanationLoading: true,
+        isExplanationStreaming: true,
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/正在加载 AI 解释/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /生成解释/i })).toBeDisabled();
+  });
+
+  it("shows streaming indicator once explanation content starts arriving", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: "第一段解释",
+        isExplanationLoading: false,
+        isExplanationStreaming: true,
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+
+    expect(screen.getByText("第一段解释")).toBeInTheDocument();
+    expect(screen.getByText(/正在流式接收解释/i)).toBeInTheDocument();
+  });
+
+  it("shows recoverable explanation error state without leaving stale explanation visible", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: null,
+        explanationError: "代理连接失败",
+        explanationErrorInfo: {
+          message: "代理连接失败",
+          details: "error sending request",
+          kind: "proxy",
+          retryable: true,
+          fallbackTried: true,
+        },
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("代理连接失败")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/备用端点也无法访问/i)).toBeInTheDocument();
+    expect(screen.getByText(/暂无 AI 解释/i)).toBeInTheDocument();
+    expect(screen.queryByText("这是缓存的技能解释。")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /生成解释/i })).toBeEnabled();
+  });
+
+  it("keeps retry action available after explanation failure", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: null,
+        explanationError: "temporary failure",
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+    fireEvent.click(screen.getByRole("button", { name: /生成解释/i }));
+
+    await waitFor(() => {
+      expect(mockGenerateExplanation).toHaveBeenCalledWith("frontend-design", mockContent, "zh");
+    });
+  });
+
+  it("reveals structured explanation error details on demand", async () => {
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({
+        explanation: null,
+        explanationError: "temporary failure",
+        explanationErrorInfo: {
+          message: "temporary failure",
+          details: "connect ECONNREFUSED 127.0.0.1:3000",
+          kind: "connect",
+          retryable: true,
+          fallbackTried: false,
+        },
+      });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/skill/frontend-design"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /AI 解释/i }));
+    fireEvent.click(screen.getByRole("button", { name: /查看详情/i }));
+
+    expect(screen.getByText(/ECONNREFUSED 127.0.0.1:3000/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /生成解释/i })).toBeEnabled();
   });
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -399,6 +678,41 @@ describe("SkillDetail", () => {
       </MemoryRouter>
     );
     expect(screen.getByText("Skill not found")).toBeInTheDocument();
+  });
+
+  it("renders a safe browser fallback when the Tauri bridge is unavailable", async () => {
+    Object.defineProperty(window, "__TAURI__", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.mocked(useSkillDetailStore).mockImplementation((selector?: unknown) => {
+      const state = buildDetailStoreState({ detail: null, content: null, error: null, isLoading: false });
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+    vi.mocked(usePlatformStore).mockImplementation((selector?: unknown) => {
+      const state = buildPlatformStoreState();
+      if (typeof selector === "function") return selector(state);
+      return state;
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/skill/defuddle"]}>
+        <Routes>
+          <Route path="/skill/:skillId" element={<SkillDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/技能详情需要桌面运行时/i)).toBeInTheDocument();
+    expect(screen.getByText(/浏览器预览中该路由现在会安全渲染/i)).toBeInTheDocument();
   });
 
   // ── Store calls ───────────────────────────────────────────────────────────

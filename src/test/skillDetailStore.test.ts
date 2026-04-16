@@ -1,9 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SkillDetail } from "../types";
 
+const { mockInvoke, mockListen } = vi.hoisted(() => ({
+  mockInvoke: vi.fn(),
+  mockListen: vi.fn(),
+}));
+
 // Mock Tauri core before importing the store
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+  invoke: mockInvoke,
+}));
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: mockListen,
 }));
 
 import { invoke } from "@tauri-apps/api/core";
@@ -64,8 +73,14 @@ describe("skillDetailStore", () => {
       isLoading: false,
       installingAgentId: null,
       error: null,
+      explanation: null,
+      isExplanationLoading: false,
+      isExplanationStreaming: false,
+      explanationError: null,
+      explanationErrorInfo: null,
     });
     vi.clearAllMocks();
+    mockListen.mockResolvedValue(vi.fn());
   });
 
   // ── Initial State ─────────────────────────────────────────────────────────
@@ -222,5 +237,344 @@ describe("skillDetailStore", () => {
     expect(state.content).toBeNull();
     expect(state.isLoading).toBe(false);
     expect(state.error).toBeNull();
+  });
+
+  // ── explanation streaming ────────────────────────────────────────────────
+
+  it("appends streamed explanation chunks from backend text payloads", async () => {
+    let chunkHandler!: (event: { payload: { skill_id: string; text: string } }) => void;
+    let completeHandler!: (event: { payload: { skill_id: string; explanation?: string } }) => void;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:chunk") {
+        chunkHandler = handler as typeof chunkHandler;
+      }
+      if (eventName === "skill:explanation:complete") {
+        completeHandler = handler as typeof completeHandler;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    chunkHandler({ payload: { skill_id: "frontend-design", text: "第一段" } });
+    chunkHandler({ payload: { skill_id: "frontend-design", text: "第二段" } });
+    completeHandler({ payload: { skill_id: "frontend-design" } });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBe("第一段第二段");
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(false);
+    expect(state.explanationError).toBeNull();
+  });
+
+  it("accepts legacy chunk payloads that use chunk field", async () => {
+    let chunkHandler!: (event: { payload: { skill_id: string; chunk: string } }) => void;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:chunk") {
+        chunkHandler = handler as typeof chunkHandler;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    chunkHandler({ payload: { skill_id: "frontend-design", chunk: "兼容字段" } });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBe("兼容字段");
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(true);
+  });
+
+  it("uses explanation from complete payload when provided", async () => {
+    let completeHandler!: (event: { payload: { skill_id: string; explanation?: string } }) => void;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:complete") {
+        completeHandler = handler as typeof completeHandler;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    completeHandler({
+      payload: { skill_id: "frontend-design", explanation: "最终解释" },
+    });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBe("最终解释");
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(false);
+  });
+
+  it("surfaces explanation error events and stops streaming state", async () => {
+    let errorHandler!: (event: { payload: { skill_id: string; error?: string } }) => void;
+    const unlistenChunk = vi.fn();
+    const unlistenComplete = vi.fn();
+    const unlistenError = vi.fn();
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:error") {
+        errorHandler = handler as typeof errorHandler;
+        return unlistenError;
+      }
+      if (eventName === "skill:explanation:chunk") {
+        return unlistenChunk;
+      }
+      if (eventName === "skill:explanation:complete") {
+        return unlistenComplete;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    errorHandler({
+      payload: { skill_id: "frontend-design", error: "API 返回错误 401" },
+    });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBeNull();
+    expect(state.explanationError).toBe("API 返回错误 401");
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(false);
+    expect(unlistenChunk).toHaveBeenCalledTimes(1);
+    expect(unlistenComplete).toHaveBeenCalledTimes(1);
+    expect(unlistenError).toHaveBeenCalledTimes(1);
+  });
+
+  it("receives structured error_info from explanation error events", async () => {
+    let errorHandler!: (event: { payload: { skill_id: string; error?: string; error_info?: { message: string; details: string; kind: string; retryable: boolean; fallbackTried: boolean } } }) => void;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:error") {
+        errorHandler = handler as typeof errorHandler;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    errorHandler({
+      payload: {
+        skill_id: "frontend-design",
+        error: "代理连接失败",
+        error_info: {
+          message: "代理连接失败",
+          details: "error sending request → tunnel error: unsuccessful",
+          kind: "proxy",
+          retryable: true,
+          fallbackTried: true,
+        },
+      },
+    });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBeNull();
+    expect(state.explanationError).toBe("代理连接失败");
+    expect(state.explanationErrorInfo).not.toBeNull();
+    expect(state.explanationErrorInfo?.kind).toBe("proxy");
+    expect(state.explanationErrorInfo?.retryable).toBe(true);
+    expect(state.explanationErrorInfo?.fallbackTried).toBe(true);
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(false);
+  });
+
+  it("clears explanationErrorInfo on reset", async () => {
+    let errorHandler!: (event: { payload: { skill_id: string; error?: string; error_info?: { message: string; details: string; kind: string; retryable: boolean; fallbackTried: boolean } } }) => void;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:error") {
+        errorHandler = handler as typeof errorHandler;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    errorHandler({
+      payload: {
+        skill_id: "frontend-design",
+        error: "timeout",
+        error_info: {
+          message: "请求超时",
+          details: "timeout error",
+          kind: "timeout",
+          retryable: true,
+          fallbackTried: false,
+        },
+      },
+    });
+
+    expect(useSkillDetailStore.getState().explanationErrorInfo).not.toBeNull();
+    useSkillDetailStore.getState().reset();
+    expect(useSkillDetailStore.getState().explanationErrorInfo).toBeNull();
+  });
+
+  it("keeps skill context and allows retry after a failed explanation request", async () => {
+    vi.mocked(invoke)
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    let state = useSkillDetailStore.getState();
+    expect(state.explanation).toBeNull();
+    expect(state.explanationError).toContain("temporary failure");
+    expect(state.isExplanationLoading).toBe(false);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    expect(invoke).toHaveBeenNthCalledWith(1, "explain_skill_stream", {
+      skillId: "frontend-design",
+      content: mockContent,
+      lang: "zh",
+    });
+    expect(invoke).toHaveBeenNthCalledWith(2, "explain_skill_stream", {
+      skillId: "frontend-design",
+      content: mockContent,
+      lang: "zh",
+    });
+
+    state = useSkillDetailStore.getState();
+    expect(state.explanationError).toBeNull();
+    expect(state.isExplanationLoading).toBe(true);
+    expect(state.isExplanationStreaming).toBe(false);
+  });
+
+  it("enters loading state immediately for cached explanation lookup and ignores stale responses", async () => {
+    let resolveFirst!: (value: string | null) => void;
+    let resolveSecond!: (value: string | null) => void;
+
+    vi.mocked(invoke)
+      .mockReturnValueOnce(new Promise<string | null>((r) => (resolveFirst = r)))
+      .mockReturnValueOnce(new Promise<string | null>((r) => (resolveSecond = r)));
+
+    const firstRequest = useSkillDetailStore
+      .getState()
+      .loadCachedExplanation("frontend-design", "zh");
+
+    expect(useSkillDetailStore.getState().isExplanationLoading).toBe(true);
+    expect(useSkillDetailStore.getState().explanation).toBeNull();
+
+    const secondRequest = useSkillDetailStore
+      .getState()
+      .loadCachedExplanation("frontend-design", "en");
+
+    resolveFirst("旧缓存");
+    await firstRequest;
+
+    expect(useSkillDetailStore.getState().isExplanationLoading).toBe(true);
+    expect(useSkillDetailStore.getState().explanation).toBeNull();
+
+    resolveSecond("Fresh cache");
+    await secondRequest;
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBe("Fresh cache");
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.explanationError).toBeNull();
+  });
+
+  it("stays loading until the first streamed chunk arrives", async () => {
+    let chunkHandler!: (event: { payload: { skill_id: string; text: string } }) => void;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:chunk") {
+        chunkHandler = handler as typeof chunkHandler;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+
+    expect(useSkillDetailStore.getState().isExplanationLoading).toBe(true);
+    expect(useSkillDetailStore.getState().isExplanationStreaming).toBe(false);
+
+    chunkHandler({ payload: { skill_id: "frontend-design", text: "第一段" } });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBe("第一段");
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(true);
+  });
+
+  it("ignores out-of-order explanation events from an older request", async () => {
+    let firstChunkHandler!: (event: { payload: { skill_id: string; text: string } }) => void;
+    let firstCompleteHandler!: (event: { payload: { skill_id: string; explanation?: string } }) => void;
+    let secondChunkHandler!: (event: { payload: { skill_id: string; text: string } }) => void;
+    let secondCompleteHandler!: (event: { payload: { skill_id: string; explanation?: string } }) => void;
+    let listenerRound = 0;
+
+    mockListen.mockImplementation(async (eventName: string, handler: unknown) => {
+      if (eventName === "skill:explanation:chunk") {
+        if (listenerRound === 0) firstChunkHandler = handler as typeof firstChunkHandler;
+        else secondChunkHandler = handler as typeof secondChunkHandler;
+      }
+      if (eventName === "skill:explanation:complete") {
+        if (listenerRound === 0) firstCompleteHandler = handler as typeof firstCompleteHandler;
+        else secondCompleteHandler = handler as typeof secondCompleteHandler;
+      }
+      if (eventName === "skill:explanation:error") {
+        listenerRound += 1;
+      }
+      return vi.fn();
+    });
+
+    vi.mocked(invoke).mockResolvedValue(undefined);
+
+    await useSkillDetailStore
+      .getState()
+      .generateExplanation("frontend-design", mockContent, "zh");
+    await useSkillDetailStore
+      .getState()
+      .refreshExplanation("frontend-design", mockContent, "zh");
+
+    secondChunkHandler({ payload: { skill_id: "frontend-design", text: "新请求" } });
+    firstChunkHandler({ payload: { skill_id: "frontend-design", text: "旧请求" } });
+    firstCompleteHandler({ payload: { skill_id: "frontend-design", explanation: "旧完成" } });
+    secondCompleteHandler({ payload: { skill_id: "frontend-design", explanation: "新完成" } });
+
+    const state = useSkillDetailStore.getState();
+    expect(state.explanation).toBe("新完成");
+    expect(state.explanation).not.toContain("旧请求");
+    expect(state.explanationError).toBeNull();
+    expect(state.isExplanationLoading).toBe(false);
+    expect(state.isExplanationStreaming).toBe(false);
   });
 });
