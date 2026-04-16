@@ -22,6 +22,7 @@ interface CollectionState {
   batchInstallCollection: (collectionId: string, agentIds: string[]) => Promise<CollectionBatchInstallResult>;
   exportCollection: (collectionId: string) => Promise<string>;
   importCollection: (json: string) => Promise<Collection>;
+  refreshCounts: () => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -202,6 +203,16 @@ export const useCollectionStore = create<CollectionState>((set, get) => ({
       const collections = await invoke<Collection[]>("get_collections");
       set({ collections: collections ?? [] });
       return collection;
+    } catch (err) {
+      set({ error: String(err) });
+      throw err;
+    }
+  },
+
+  refreshCounts: async () => {
+    try {
+      const collections = await invoke<Collection[]>("get_collections");
+      set({ collections: collections ?? [] });
     } catch (err) {
       set({ error: String(err) });
       throw err;

@@ -9,50 +9,28 @@ import {
   Trash2,
   Download,
   PackagePlus,
-  X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { usePlatformStore } from "@/stores/platformStore";
+import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { CollectionEditor } from "@/components/collection/CollectionEditor";
 import { SkillPickerDialog } from "@/components/collection/SkillPickerDialog";
 import { CollectionInstallDialog } from "@/components/collection/CollectionInstallDialog";
-import { Collection, Skill } from "@/types";
+import { InstallDialog } from "@/components/central/InstallDialog";
+import { UnifiedSkillCard } from "@/components/skill/UnifiedSkillCard";
+import { Collection, SkillWithLinks } from "@/types";
 import { cn } from "@/lib/utils";
-
-// ─── SkillRow ────────────────────────────────────────────────────────────────
-
-function SkillRow({ skill, onRemove }: { skill: Skill; onRemove: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <div className="flex items-center gap-3 py-2.5 px-4 border-b border-border/50 last:border-0 hover:bg-hover-bg/15 transition-colors group cursor-pointer">
-      <BookOpen className="size-4 text-muted-foreground shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{skill.name}</div>
-        {skill.description && (
-          <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-            {skill.description}
-          </div>
-        )}
-      </div>
-      <button
-        onClick={onRemove}
-        aria-label={t("collection.removeSkillLabel", { name: skill.name })}
-        className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-      >
-        <X className="size-3.5" />
-      </button>
-    </div>
-  );
-}
 
 // ─── CollectionsListView ─────────────────────────────────────────────────────
 
 export function CollectionsListView() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   // Collection store
   const collections = useCollectionStore((s) => s.collections);
@@ -69,6 +47,13 @@ export function CollectionsListView() {
   const addSkillToCollection = useCollectionStore((s) => s.addSkillToCollection);
 
   const agents = usePlatformStore((s) => s.agents);
+  const refreshCounts = usePlatformStore((s) => s.refreshCounts);
+
+  // Central skills (for resolving SkillWithLinks before opening InstallDialog)
+  const centralSkills = useCentralSkillsStore((s) => s.skills);
+  const centralAgents = useCentralSkillsStore((s) => s.agents);
+  const loadCentralSkills = useCentralSkillsStore((s) => s.loadCentralSkills);
+  const installCentralSkill = useCentralSkillsStore((s) => s.installSkill);
 
   // Local state
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -77,6 +62,8 @@ export function CollectionsListView() {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isInstallOpen, setIsInstallOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [installTargetSkill, setInstallTargetSkill] = useState<SkillWithLinks | null>(null);
+  const [isSingleInstallOpen, setIsSingleInstallOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   // Load collections on mount.
@@ -98,10 +85,40 @@ export function CollectionsListView() {
     }
   }, [selectedId, loadCollectionDetail]);
 
+  // Ensure central skills are loaded so we can resolve SkillWithLinks for InstallDialog.
+  useEffect(() => {
+    if (centralSkills.length === 0) {
+      loadCentralSkills();
+    }
+  }, [centralSkills.length, loadCentralSkills]);
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleSelect(id: string) {
     setSelectedId(id);
+  }
+
+  function handleInstallSingleSkillClick(skillId: string) {
+    const target = centralSkills.find((s) => s.id === skillId);
+    if (!target) {
+      toast.error(t("central.installError", { error: t("platform.notFound") }));
+      return;
+    }
+    setInstallTargetSkill(target);
+    setIsSingleInstallOpen(true);
+  }
+
+  async function handleInstallSingleSkill(skillId: string, agentIds: string[], method: string) {
+    try {
+      const result = await installCentralSkill(skillId, agentIds, method);
+      await refreshCounts();
+      if (result.failed.length > 0) {
+        const failedNames = result.failed.map((f) => f.agent_id).join(", ");
+        toast.error(t("central.installPartialFail", { platforms: failedNames }));
+      }
+    } catch (err) {
+      toast.error(t("central.installError", { error: String(err) }));
+    }
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -305,11 +322,14 @@ export function CollectionsListView() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="mx-6 my-3 rounded-md border border-border overflow-hidden">
+                    <div className="mx-6 my-3 grid grid-cols-2 gap-4">
                       {currentDetail.skills.map((skill) => (
-                        <SkillRow
+                        <UnifiedSkillCard
                           key={skill.id}
-                          skill={skill}
+                          name={skill.name}
+                          description={skill.description}
+                          onDetail={() => navigate(`/skill/${skill.id}`)}
+                          onInstallTo={() => handleInstallSingleSkillClick(skill.id)}
                           onRemove={() => handleRemoveSkill(skill.id)}
                         />
                       ))}
@@ -362,6 +382,14 @@ export function CollectionsListView() {
         accept=".json"
         className="hidden"
         onChange={handleImportFile}
+      />
+
+      <InstallDialog
+        open={isSingleInstallOpen}
+        onOpenChange={setIsSingleInstallOpen}
+        skill={installTargetSkill}
+        agents={centralAgents}
+        onInstall={handleInstallSingleSkill}
       />
     </div>
   );

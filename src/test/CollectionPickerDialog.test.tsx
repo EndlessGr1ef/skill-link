@@ -73,6 +73,7 @@ function buildStoreState(overrides = {}) {
     batchInstallCollection: vi.fn(),
     exportCollection: vi.fn(),
     importCollection: vi.fn(),
+    refreshCounts: vi.fn(),
     ...overrides,
   };
 }

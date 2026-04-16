@@ -47,6 +47,7 @@ interface DiscoverState {
   startScan: () => Promise<void>;
   stopScan: () => Promise<void>;
   loadDiscoveredSkills: () => Promise<void>;
+  refreshCounts: () => Promise<void>;
   importToCentral: (skillId: string) => Promise<DiscoverImportResult>;
   importToPlatform: (skillId: string, agentId: string) => Promise<DiscoverImportResult>;
   clearResults: () => Promise<void>;
@@ -234,6 +235,20 @@ export const useDiscoverStore = create<DiscoverState>((set, get) => ({
       });
     } catch (err) {
       set({ error: String(err) });
+    }
+  },
+
+  refreshCounts: async () => {
+    try {
+      const projects = await invoke<DiscoveredProject[]>("get_discovered_skills");
+      const totalSkills = projects.reduce((sum, p) => sum + p.skills.length, 0);
+      set({
+        discoveredProjects: projects,
+        totalSkillsFound: totalSkills,
+      });
+    } catch (err) {
+      set({ error: String(err) });
+      throw err;
     }
   },
 

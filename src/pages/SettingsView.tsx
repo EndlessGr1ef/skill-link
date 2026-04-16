@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Pencil, Loader2, FolderOpen, Cpu, Info, Database, Globe, Palette, Droplets, Bot } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, FolderOpen, Cpu, Info, Database, Globe, Palette, Droplets, Bot, ChevronDown, ChevronRight } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -189,6 +189,7 @@ export function SettingsView() {
   const accent = useThemeStore((s) => s.accent);
   const setAccent = useThemeStore((s) => s.setAccent);
   const rescan = usePlatformStore((s) => s.rescan);
+  const refreshCounts = usePlatformStore((s) => s.refreshCounts);
 
   // Custom agents are those that are not built-in.
   const customAgents = agents.filter((a) => !a.is_builtin);
@@ -259,7 +260,8 @@ export function SettingsView() {
     : (currentProvider?.endpoints[aiRegion] ?? "");
   const lang = i18n.language;
   const [aiTesting, setAiTesting] = useState(false);
-  const [aiTestResult, setAiTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [aiTestResult, setAiTestResult] = useState<{ ok: boolean; msg: string; details?: string } | null>(null);
+  const [showAiTestDetails, setShowAiTestDetails] = useState(false);
 
   const [isAddDirOpen, setIsAddDirOpen] = useState(false);
   const [showBuiltinDirs, setShowBuiltinDirs] = useState(false);
@@ -283,7 +285,7 @@ export function SettingsView() {
     try {
       await addScanDirectory(path);
       // Trigger rescan after adding a directory.
-      await rescan();
+      await refreshCounts();
       toast.success(t("addDir.add") + " ✓");
     } catch (err) {
       setScanDirError(String(err));
@@ -298,7 +300,7 @@ export function SettingsView() {
     try {
       await removeScanDirectory(path);
       // Trigger rescan after removing a directory.
-      await rescan();
+      await refreshCounts();
       toast.success(t("common.delete") + " ✓");
     } catch (err) {
       setScanDirError(String(err));
@@ -506,11 +508,28 @@ export function SettingsView() {
                   <div className="text-xs text-muted-foreground bg-muted/30 rounded-md px-3 py-2 font-mono truncate flex-1 min-w-0">{resolvedUrl}</div>
                 )}
                 <Button variant="outline" size="sm" disabled={aiTesting || !aiApiKey || !resolvedUrl} onClick={async () => {
-                  setAiTesting(true); setAiTestResult(null);
+                  setAiTesting(true); setAiTestResult(null); setShowAiTestDetails(false);
                   try {
                     const result = await invoke<string>("explain_skill", { content: "Test connection. Reply with: OK" });
                     setAiTestResult({ ok: true, msg: result.slice(0, 60) });
-                  } catch (err) { setAiTestResult({ ok: false, msg: String(err) }); }
+                  } catch (err) {
+                    const raw = String(err);
+                    // Try to extract structured error from JSON-like error strings
+                    let msg = raw;
+                    let details: string | undefined;
+                    const prefix = "API 请求失败: ";
+                    if (raw.startsWith(prefix)) {
+                      const after = raw.slice(prefix.length);
+                      const nlIdx = after.indexOf("\n");
+                      if (nlIdx > 0) {
+                        msg = after.slice(nlIdx + 1);
+                        details = after.slice(0, nlIdx);
+                      } else {
+                        msg = after;
+                      }
+                    }
+                    setAiTestResult({ ok: false, msg, details });
+                  }
                   finally { setAiTesting(false); }
                 }} className="shrink-0">
                   {aiTesting ? <Loader2 className="size-3.5 animate-spin" /> : <Bot className="size-3.5" />}
@@ -518,8 +537,31 @@ export function SettingsView() {
                 </Button>
               </div>
               {aiTestResult && (
-                <div className={`text-xs rounded-md px-3 py-2 ${aiTestResult.ok ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-destructive/10 text-destructive"}`}>
-                  {aiTestResult.ok ? "✓ " : "✕ "}{aiTestResult.msg}
+                <div className={`text-xs rounded-md px-3 py-2 space-y-1.5 ${aiTestResult.ok ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-destructive/10 text-destructive"}`}>
+                  <p>{aiTestResult.ok ? "✓ " : "✕ "}{aiTestResult.msg}</p>
+                  {!aiTestResult.ok && aiTestResult.details && (
+                    <div>
+                      <button
+                        className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        onClick={() => setShowAiTestDetails((v) => !v)}
+                      >
+                        {showAiTestDetails ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+                        {lang === "zh" ? "查看详情" : "Details"}
+                      </button>
+                      {showAiTestDetails && (
+                        <pre className="mt-1 text-[11px] leading-4 font-mono text-muted-foreground whitespace-pre-wrap break-all bg-muted/30 rounded-md p-2 max-h-32 overflow-auto">
+                          {aiTestResult.details}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                  {!aiTestResult.ok && currentProvider && currentProvider.regions.length > 1 && (
+                    <p className="text-muted-foreground">
+                      {lang === "zh"
+                        ? `提示：可在上方切换区域端点后重试（当前：${REGION_LABELS[aiRegion]?.zh ?? aiRegion}）`
+                        : `Tip: Try switching the region endpoint above (current: ${REGION_LABELS[aiRegion]?.en ?? aiRegion})`}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

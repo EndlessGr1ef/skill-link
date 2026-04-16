@@ -96,6 +96,7 @@ function buildCollectionStoreState(overrides = {}) {
     batchInstallCollection: vi.fn(),
     exportCollection: mockExportCollection,
     importCollection: vi.fn(),
+    refreshCounts: vi.fn(),
     ...overrides,
   };
 }
@@ -105,9 +106,11 @@ function buildPlatformStoreState(overrides = {}) {
     agents: mockAgents,
     skillsByAgent: {},
     isLoading: false,
+    isRefreshing: false,
     error: null,
     initialize: vi.fn(),
     rescan: vi.fn(),
+    refreshCounts: vi.fn(),
     ...overrides,
   };
 }

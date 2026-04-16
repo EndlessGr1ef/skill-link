@@ -60,9 +60,11 @@ const defaultStoreState = {
     central: 10,
   },
   isLoading: false,
+  isRefreshing: false,
   error: null,
   initialize: vi.fn(),
   rescan: vi.fn(),
+  refreshCounts: vi.fn(),
 };
 
 const defaultCollectionState = {
@@ -81,6 +83,7 @@ const defaultCollectionState = {
   batchInstallCollection: vi.fn(),
   exportCollection: vi.fn(),
   importCollection: vi.fn(),
+  refreshCounts: vi.fn(),
 };
 
 const defaultDiscoverState = {

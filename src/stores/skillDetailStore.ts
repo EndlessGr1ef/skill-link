@@ -54,6 +54,7 @@ interface SkillDetailState {
   refreshExplanation: (skillId: string, content: string, lang: string) => Promise<void>;
   installSkill: (skillId: string, agentId: string) => Promise<void>;
   uninstallSkill: (skillId: string, agentId: string) => Promise<void>;
+  refreshInstallations: (skillId: string) => Promise<void>;
   cleanupExplanationListeners: () => void;
   reset: () => void;
 }
@@ -321,6 +322,22 @@ export const useSkillDetailStore = create<SkillDetailState>((set) => ({
       set({ detail, installingAgentId: null });
     } catch (err) {
       set({ error: String(err), installingAgentId: null });
+    }
+  },
+
+  refreshInstallations: async (skillId: string) => {
+    if (!isTauriRuntime()) {
+      return;
+    }
+    try {
+      const detail = await invoke<SkillDetail>("get_skill_detail", { skillId });
+      set((state) => ({
+        detail,
+        content: state.content,
+        isLoading: state.isLoading,
+      }));
+    } catch (err) {
+      set({ error: String(err) });
     }
   },
 

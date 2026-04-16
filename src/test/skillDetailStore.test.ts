@@ -225,6 +225,33 @@ describe("skillDetailStore", () => {
     expect(state.installingAgentId).toBeNull();
   });
 
+  it("refreshInstallations updates only the detail installation state", async () => {
+    useSkillDetailStore.setState({
+      detail: mockDetail,
+      content: mockContent,
+      isLoading: false,
+      installingAgentId: null,
+      error: null,
+      explanation: null,
+      isExplanationLoading: false,
+      isExplanationStreaming: false,
+      explanationError: null,
+      explanationErrorInfo: null,
+    });
+
+    vi.mocked(invoke).mockResolvedValueOnce(mockDetailAfterInstall);
+
+    await useSkillDetailStore.getState().refreshInstallations("frontend-design");
+
+    const state = useSkillDetailStore.getState();
+    expect(invoke).toHaveBeenCalledWith("get_skill_detail", {
+      skillId: "frontend-design",
+    });
+    expect(state.detail?.installations).toHaveLength(2);
+    expect(state.content).toBe(mockContent);
+    expect(state.isLoading).toBe(false);
+  });
+
   // ── reset ─────────────────────────────────────────────────────────────────
 
   it("resets store to initial state", async () => {

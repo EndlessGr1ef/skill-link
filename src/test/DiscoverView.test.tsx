@@ -313,7 +313,7 @@ describe("DiscoverView", () => {
     const encoded = encodeURIComponent("/home/user/projects/my-app");
     renderDiscoverView(`/discover/${encoded}`);
 
-    const installBtn = screen.getAllByText("Install to Central")[0];
+    const installBtn = screen.getAllByTitle("Install to Central")[0];
     fireEvent.click(installBtn);
 
     await waitFor(() => {

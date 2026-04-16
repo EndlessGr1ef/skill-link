@@ -50,6 +50,7 @@ describe("platformStore", () => {
       agents: [],
       skillsByAgent: {},
       isLoading: false,
+      isRefreshing: false,
       error: null,
     });
     vi.clearAllMocks();
@@ -62,6 +63,7 @@ describe("platformStore", () => {
     expect(state.agents).toEqual([]);
     expect(state.skillsByAgent).toEqual({});
     expect(state.isLoading).toBe(false);
+    expect(state.isRefreshing).toBe(false);
     expect(state.error).toBeNull();
   });
 
@@ -132,6 +134,7 @@ describe("platformStore", () => {
       agents: mockAgents,
       skillsByAgent: { "claude-code": 2 },
       isLoading: false,
+      isRefreshing: false,
       error: null,
     });
 
@@ -161,5 +164,36 @@ describe("platformStore", () => {
     const state = usePlatformStore.getState();
     expect(state.error).toContain("Network error");
     expect(state.isLoading).toBe(false);
+  });
+
+  it("refreshCounts updates counts without entering the full loading state", async () => {
+    usePlatformStore.setState({
+      agents: mockAgents,
+      skillsByAgent: { "claude-code": 2, central: 3 },
+      isLoading: false,
+      isRefreshing: false,
+      error: null,
+    });
+
+    const updatedScanResult: ScanResult = {
+      total_skills: 11,
+      agents_scanned: 2,
+      skills_by_agent: { "claude-code": 8, central: 3 },
+    };
+
+    vi.mocked(invoke)
+      .mockResolvedValueOnce(mockAgents)
+      .mockResolvedValueOnce(updatedScanResult);
+
+    const refreshPromise = usePlatformStore.getState().refreshCounts();
+    expect(usePlatformStore.getState().isLoading).toBe(false);
+    expect(usePlatformStore.getState().isRefreshing).toBe(true);
+
+    await refreshPromise;
+
+    const state = usePlatformStore.getState();
+    expect(state.skillsByAgent).toEqual(updatedScanResult.skills_by_agent);
+    expect(state.isLoading).toBe(false);
+    expect(state.isRefreshing).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ export function PlatformView() {
   const centralAgents = useCentralSkillsStore((state) => state.agents);
   const loadCentralSkills = useCentralSkillsStore((state) => state.loadCentralSkills);
   const installSkill = useCentralSkillsStore((state) => state.installSkill);
-  const rescan = usePlatformStore((state) => state.rescan);
+  const refreshCounts = usePlatformStore((state) => state.refreshCounts);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [installTargetSkill, setInstallTargetSkill] = useState<SkillWithLinks | null>(null);
@@ -84,7 +84,7 @@ export function PlatformView() {
   async function handleInstall(skillId: string, agentIds: string[], method: string) {
     try {
       const result = await installSkill(skillId, agentIds, method);
-      await rescan();
+      await refreshCounts();
       if (agentId) {
         await getSkillsByAgent(agentId);
       }

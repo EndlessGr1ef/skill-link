@@ -106,9 +106,11 @@ function setupMocks({
       agents,
       skillsByAgent: {},
       isLoading: false,
+      isRefreshing: false,
       error: null,
       initialize: vi.fn(),
       rescan,
+      refreshCounts: vi.fn(),
     })
   );
 

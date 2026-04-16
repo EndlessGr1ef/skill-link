@@ -8,11 +8,13 @@ interface PlatformState {
   agents: AgentWithStatus[];
   skillsByAgent: Record<string, number>;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | null;
 
   // Actions
   initialize: () => Promise<void>;
   rescan: () => Promise<void>;
+  refreshCounts: () => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -21,6 +23,7 @@ export const usePlatformStore = create<PlatformState>((set) => ({
   agents: [],
   skillsByAgent: {},
   isLoading: false,
+  isRefreshing: false,
   error: null,
 
   /**
@@ -62,6 +65,24 @@ export const usePlatformStore = create<PlatformState>((set) => ({
       });
     } catch (err) {
       set({ error: String(err), isLoading: false });
+    }
+  },
+
+  refreshCounts: async () => {
+    set({ isRefreshing: true, error: null });
+    try {
+      const [agents, scanResult] = await Promise.all([
+        invoke<AgentWithStatus[]>("get_agents"),
+        invoke<ScanResult>("scan_all_skills"),
+      ]);
+      set((state) => ({
+        agents,
+        skillsByAgent: scanResult.skills_by_agent,
+        isRefreshing: false,
+        isLoading: state.isLoading,
+      }));
+    } catch (err) {
+      set({ error: String(err), isRefreshing: false });
     }
   },
 }));

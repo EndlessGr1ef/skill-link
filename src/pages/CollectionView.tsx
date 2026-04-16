@@ -17,9 +17,12 @@ import { Button } from "@/components/ui/button";
 import { UnifiedSkillCard } from "@/components/skill/UnifiedSkillCard";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { usePlatformStore } from "@/stores/platformStore";
+import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { CollectionEditor } from "@/components/collection/CollectionEditor";
 import { SkillPickerDialog } from "@/components/collection/SkillPickerDialog";
 import { CollectionInstallDialog } from "@/components/collection/CollectionInstallDialog";
+import { InstallDialog } from "@/components/central/InstallDialog";
+import { SkillWithLinks } from "@/types";
 
 // ─── CollectionView ───────────────────────────────────────────────────────────
 
@@ -39,6 +42,12 @@ export function CollectionView() {
   const addSkillToCollection = useCollectionStore((s) => s.addSkillToCollection);
 
   const agents = usePlatformStore((s) => s.agents);
+  const refreshCounts = usePlatformStore((s) => s.refreshCounts);
+
+  const centralSkills = useCentralSkillsStore((s) => s.skills);
+  const centralAgents = useCentralSkillsStore((s) => s.agents);
+  const loadCentralSkills = useCentralSkillsStore((s) => s.loadCentralSkills);
+  const installCentralSkill = useCentralSkillsStore((s) => s.installSkill);
 
   const importCollection = useCollectionStore((s) => s.importCollection);
 
@@ -49,6 +58,8 @@ export function CollectionView() {
   const [isInstallOpen, setIsInstallOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [installTargetSkill, setInstallTargetSkill] = useState<SkillWithLinks | null>(null);
+  const [isSingleInstallOpen, setIsSingleInstallOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -71,6 +82,36 @@ export function CollectionView() {
       loadCollectionDetail(collectionId);
     }
   }, [collectionId, loadCollectionDetail]);
+
+  // Ensure central skills are loaded so we can resolve SkillWithLinks for InstallDialog.
+  useEffect(() => {
+    if (centralSkills.length === 0) {
+      loadCentralSkills();
+    }
+  }, [centralSkills.length, loadCentralSkills]);
+
+  function handleInstallSingleSkillClick(skillId: string) {
+    const target = centralSkills.find((s) => s.id === skillId);
+    if (!target) {
+      toast.error(t("central.installError", { error: t("platform.notFound") }));
+      return;
+    }
+    setInstallTargetSkill(target);
+    setIsSingleInstallOpen(true);
+  }
+
+  async function handleInstallSingleSkill(skillId: string, agentIds: string[], method: string) {
+    try {
+      const result = await installCentralSkill(skillId, agentIds, method);
+      await refreshCounts();
+      if (result.failed.length > 0) {
+        const failedNames = result.failed.map((f) => f.agent_id).join(", ");
+        toast.error(t("central.installPartialFail", { platforms: failedNames }));
+      }
+    } catch (err) {
+      toast.error(t("central.installError", { error: String(err) }));
+    }
+  }
 
   async function handleRemoveSkill(skillId: string) {
     if (!collectionId) return;
@@ -285,12 +326,14 @@ export function CollectionView() {
             </Button>
           </div>
         ) : (
-          <div className="mx-6 my-3 rounded-lg border border-border overflow-hidden">
+          <div className="mx-6 my-3 grid grid-cols-2 gap-4">
             {currentDetail.skills.map((skill) => (
               <UnifiedSkillCard
                 key={skill.id}
                 name={skill.name}
                 description={skill.description}
+                onDetail={() => navigate(`/skill/${skill.id}`)}
+                onInstallTo={() => handleInstallSingleSkillClick(skill.id)}
                 onRemove={() => handleRemoveSkill(skill.id)}
               />
             ))}
@@ -339,6 +382,14 @@ export function CollectionView() {
         skillCount={currentDetail.skills.length}
         agents={agents}
         onInstall={(agentIds) => batchInstallCollection(currentDetail.id, agentIds)}
+      />
+
+      <InstallDialog
+        open={isSingleInstallOpen}
+        onOpenChange={setIsSingleInstallOpen}
+        skill={installTargetSkill}
+        agents={centralAgents}
+        onInstall={handleInstallSingleSkill}
       />
     </div>
   );

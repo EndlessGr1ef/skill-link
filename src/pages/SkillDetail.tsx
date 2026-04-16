@@ -177,6 +177,7 @@ export function SkillDetail() {
   const loadDetail = useSkillDetailStore((s) => s.loadDetail);
   const installSkill = useSkillDetailStore((s) => s.installSkill);
   const uninstallSkill = useSkillDetailStore((s) => s.uninstallSkill);
+  const refreshInstallations = useSkillDetailStore((s) => s.refreshInstallations);
   const explanation = useSkillDetailStore((s) => s.explanation);
   const isExplanationLoading = useSkillDetailStore((s) => s.isExplanationLoading);
   const isExplanationStreaming = useSkillDetailStore((s) => s.isExplanationStreaming);
@@ -189,7 +190,7 @@ export function SkillDetail() {
 
   // Platform agents (loaded at app init)
   const agents = usePlatformStore((s) => s.agents);
-  const rescan = usePlatformStore((s) => s.rescan);
+  const refreshCounts = usePlatformStore((s) => s.refreshCounts);
 
   // Local UI state
   const [activeTab, setActiveTab] = useState<PreviewTab>("markdown");
@@ -233,7 +234,10 @@ export function SkillDetail() {
       } else {
         await installSkill(skillId, agentId);
       }
-      rescan();
+      await Promise.all([
+        refreshCounts(),
+        refreshInstallations(skillId),
+      ]);
     } catch (err) {
       toast.error(
         isInstalled

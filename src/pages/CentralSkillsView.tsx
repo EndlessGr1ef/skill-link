@@ -80,7 +80,7 @@ export function CentralSkillsView() {
   const togglingAgentId = useCentralSkillsStore((state) => state.togglingAgentId);
 
   // Keep the platform sidebar counts in sync after install.
-  const rescan = usePlatformStore((state) => state.rescan);
+  const refreshCounts = usePlatformStore((state) => state.refreshCounts);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [installTargetSkill, setInstallTargetSkill] =
@@ -131,7 +131,7 @@ export function CentralSkillsView() {
   async function handleTogglePlatform(skillId: string, agentId: string) {
     try {
       await togglePlatformLink(skillId, agentId);
-      await rescan();
+      await refreshCounts();
     } catch (err) {
       toast.error(t("central.installError", { error: String(err) }));
     }
@@ -141,7 +141,7 @@ export function CentralSkillsView() {
     try {
       const result = await installSkill(skillId, agentIds, method);
       // Refresh sidebar counts after install.
-      await rescan();
+      await refreshCounts();
       if (result.failed.length > 0) {
         const failedNames = result.failed.map((f) => f.agent_id).join(", ");
         toast.error(t("central.installPartialFail", { platforms: failedNames }));
@@ -155,7 +155,7 @@ export function CentralSkillsView() {
     try {
       // Re-scan the filesystem first so new/removed skills are picked up,
       // then reload central skills from the (now-updated) database.
-      await rescan();
+      await refreshCounts();
       await loadCentralSkills();
     } catch (err) {
       toast.error(t("central.refreshError", { error: String(err) }));

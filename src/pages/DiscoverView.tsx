@@ -99,6 +99,7 @@ export function DiscoverView() {
   const totalSkillsFound = useDiscoverStore((s) => s.totalSkillsFound);
   const selectedSkillIds = useDiscoverStore((s) => s.selectedSkillIds);
   const loadDiscoveredSkills = useDiscoverStore((s) => s.loadDiscoveredSkills);
+  const refreshDiscoverCounts = useDiscoverStore((s) => s.refreshCounts);
   const importToCentral = useDiscoverStore((s) => s.importToCentral);
   const importToPlatform = useDiscoverStore((s) => s.importToPlatform);
   const toggleSkillSelection = useDiscoverStore((s) => s.toggleSkillSelection);
@@ -106,7 +107,7 @@ export function DiscoverView() {
   const loadScanRoots = useDiscoverStore((s) => s.loadScanRoots);
 
   const agents = usePlatformStore((s) => s.agents);
-  const rescan = usePlatformStore((s) => s.rescan);
+  const refreshCounts = usePlatformStore((s) => s.refreshCounts);
 
   // Local state
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -169,8 +170,7 @@ export function DiscoverView() {
     setImportingIds((prev) => new Set(prev).add(skillId));
     try {
       await importToCentral(skillId);
-      await rescan();
-      await loadDiscoveredSkills();
+      await Promise.all([refreshCounts(), refreshDiscoverCounts()]);
       toast.success(t("discover.importSuccess"));
     } catch (err) {
       toast.error(t("discover.importError", { error: String(err) }));
@@ -206,8 +206,7 @@ export function DiscoverView() {
       for (const agentId of agentIds) {
         await importToPlatform(installTargetSkill!.id, agentId);
       }
-      await rescan();
-      await loadDiscoveredSkills();
+      await Promise.all([refreshCounts(), refreshDiscoverCounts()]);
       toast.success(t("discover.importSuccess"));
     } catch (err) {
       toast.error(t("discover.importError", { error: String(err) }));
@@ -379,6 +378,7 @@ export function DiscoverView() {
                       isCentral={skill.is_already_central}
                       platformBadge={{ id: skill.platform_id, name: skill.platform_name }}
                       projectBadge={skill.project_name}
+                      onDetail={skill.is_already_central ? () => navigate(`/skill/${skill.id}`) : undefined}
                       onInstallToCentral={() => handleInstallToCentral(skill.id)}
                       onInstallToPlatform={() => handleInstallToPlatform(skill)}
                       isLoading={importingIds.has(skill.id)}

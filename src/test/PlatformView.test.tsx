@@ -65,9 +65,11 @@ function buildPlatformStoreState(overrides = {}) {
     agents: [mockAgent],
     skillsByAgent: { "claude-code": 2 },
     isLoading: false,
+    isRefreshing: false,
     error: null,
     initialize: vi.fn(),
     rescan: vi.fn(),
+    refreshCounts: vi.fn(),
     ...overrides,
   };
 }
