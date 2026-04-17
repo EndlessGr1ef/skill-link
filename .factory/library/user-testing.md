@@ -49,6 +49,16 @@
 - For native `NSOpenPanel` file pickers, the left sidebar locations can be changed reliably by setting the target `AXRow`'s `AXSelected` attribute to `true` and then performing `AXShowDefaultUI`; the `Where:` popup updates immediately (for example, to `Downloads`).
 - In this environment, `NSOpenPanel` list-view file rows can report `AXSelected=true` while the `Open` button still stays disabled; `AXConfirm`, `AXOpen`, keyboard Enter/Return, and synthetic clicks were not sufficient to complete the file-pick action for collection import validation, so treat that step as a native-dialog automation blocker unless you have a proven real-click path.
 
+## Milestone 8 GitHub Import Validation Inputs
+
+- Public network access to GitHub endpoints used by the backend preview/import path must be available during validation.
+- **Single-skill repo:** `https://github.com/dorukardahan/twitterapi-io-skill`
+- **Default multi-skill repo:** `https://github.com/anthropics/skills`
+- **Backup multi-skill repo:** `https://github.com/cloudflare/skills`
+- Run Milestone 8 validation under an isolated `HOME` and verify that preview leaves the isolated `~/.agents/skills/` empty until the user confirms import.
+- For duplicate-resolution validation, either pre-seed an isolated central skill with a matching imported skill name or repeat an import in the same isolated `HOME` so the second run hits the overwrite / skip / rename path.
+- Validate both entry points: Marketplace as the primary launcher and Central as the secondary launcher for the exact same wizard flow.
+
 ## Rapid OCR-Based WKWebView Content Verification
 
 When the AX tree doesn't expose WKWebView content (common after app restarts where the window doesn't become frontmost), use rapid `screencapture` + `tesseract` OCR to verify what's on screen:
