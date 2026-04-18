@@ -94,3 +94,13 @@ Actual preview/import assertions must be exercised on a real Tauri runtime. The 
 - The **preview step** may widen to support the master/detail layout, but it should stop at a balanced split-view width rather than occupying an overgrown near-fullscreen shell.
 - Prefer step-dependent shell sizing over forcing the same width/height across input, preview, confirm, and result.
 - Preserve the current fixed header/footer and master/detail preview structure while recalibrating the shell size.
+
+
+## GitHub Mirror Fallback Guidance
+
+- Keep the visible input URL as the normal `https://github.com/owner/repo` form.
+- Mirror/proxy behavior should live behind the backend fetch layer rather than asking the user to paste mirror-specific URLs.
+- The fallback chain should cover the current GitHub import network surfaces: repository inspection (`api.github.com/repos/...`), directory contents listing, raw `SKILL.md` / metadata downloads, and imported file downloads.
+- Use built-in common mirror/proxy sources only for transport/connectivity failures (timeouts, connection reset, DNS/connect failures, unreachable upstream, similar network-path issues).
+- Do **not** use mirror fallback to mask explicit GitHub `401/403/429` denials; keep the existing actionable rate-limit/auth guidance for those cases.
+- Preserve preview-before-write semantics and canonical import behavior regardless of whether the successful path was direct GitHub or mirror fallback.
