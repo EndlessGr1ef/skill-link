@@ -42,7 +42,8 @@ Features involving:
    - Run `pnpm test` — all Vitest tests pass.
    - Run `pnpm typecheck` (tsc --noEmit) — no type errors.
    - Run `pnpm lint` — no lint errors.
-   - If the full Vitest suite hits failures that are already documented in mission guidance as pre-existing/unrelated, run the relevant targeted tests for your feature as well and clearly distinguish baseline noise from new regressions in the handoff.
+   - If the full Vitest suite hits failures that are already documented in mission guidance as pre-existing/unrelated, capture that baseline failure once, then continue with the relevant targeted tests for your feature as well and clearly distinguish baseline noise from new regressions in the handoff.
+   - Do not stop solely because of documented unrelated baseline failures when the assigned feature can still be verified with targeted relevant tests plus the required manual/Tauri validation.
 
 5. **Verify with agent-browser** (REQUIRED):
    - Invoke the `agent-browser` skill to verify the UI.
