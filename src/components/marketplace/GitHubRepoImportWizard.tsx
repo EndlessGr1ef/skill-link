@@ -264,7 +264,12 @@ export function GitHubRepoImportWizard({
   }
 
   async function handlePreviewSubmit() {
+    const nextSelectedSkillPath = selectedSkillPath;
     await onPreview();
+    if (!preview) {
+      setSelectedSkillPath(nextSelectedSkillPath);
+    }
+    setStep("preview");
   }
 
   function handleClose(nextOpen: boolean) {

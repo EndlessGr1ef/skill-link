@@ -508,11 +508,11 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/dorukardahan/twitterapi-io-skill" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
     await waitFor(() => {
       expect(mockPreviewGitHubRepoImport).toHaveBeenCalledWith(
@@ -524,7 +524,7 @@ describe("MarketplaceView", () => {
     expect(screen.getByTestId("github-import-preview-workspace")).toBeInTheDocument();
     expect(screen.getByTestId("github-import-summary-list")).toBeInTheDocument();
     expect(screen.getByTestId("github-import-detail-pane")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Re-preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Re-preview|重新预览/i })).toBeInTheDocument();
     expect(mockImportGitHubRepoSkills).not.toHaveBeenCalled();
   });
 
@@ -571,11 +571,11 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
     const dialog = await screen.findByRole("dialog");
     const content = dialog.querySelector('[data-slot="dialog-content"]');
@@ -596,7 +596,7 @@ describe("MarketplaceView", () => {
   it("uses a medium adaptive shell for the initial github import input step", async () => {
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
 
     const dialog = await screen.findByRole("dialog");
     const content = dialog.querySelector('[data-slot="dialog-content"]');
@@ -640,20 +640,90 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
-    await screen.findByText("First Skill");
+    await screen.findByTestId("github-import-preview-workspace");
 
-    const footerButton = screen.getByRole("button", { name: "Review import" });
+    const footerButton = screen.getByRole("button", { name: /Review import|检查导入内容/i });
     expect(footerButton).toBeInTheDocument();
     expect(footerButton.closest(".shrink-0")?.className).toContain("border-t");
 
-    fireEvent.click(screen.getAllByLabelText("Select skill")[0]);
-    expect(screen.getByRole("button", { name: "Review import" })).toBeDisabled();
+    fireEvent.click(screen.getAllByLabelText(/Select skill|选择技能/i)[0]);
+    expect(screen.getByRole("button", { name: /Review import|检查导入内容/i })).toBeDisabled();
+  });
+
+  it("keeps the selected preview skill after toolbar re-preview succeeds", async () => {
+    let previewCallCount = 0;
+    mockPreviewGitHubRepoImport.mockImplementation(async () => {
+      previewCallCount += 1;
+      storeState.githubImport = {
+        isPreviewLoading: false,
+        isImporting: false,
+        preview: {
+          repo: {
+            owner: "anthropics",
+            repo: "skills",
+            branch: previewCallCount > 1 ? "refresh-branch" : "main",
+            normalizedUrl: "https://github.com/anthropics/skills",
+          },
+          skills: [
+            {
+              sourcePath: "skills/first/SKILL.md",
+              skillId: "first-skill",
+              skillName: "First Skill",
+              description: "First skill full description",
+              rootDirectory: "skills",
+              skillDirectoryName: "first",
+              downloadUrl: "https://example.com/first",
+              conflict: null,
+            },
+            {
+              sourcePath: "skills/second/SKILL.md",
+              skillId: "second-skill",
+              skillName: "Second Skill",
+              description: previewCallCount > 1 ? "Second skill refreshed description" : "Second skill full description",
+              rootDirectory: "skills",
+              skillDirectoryName: "second",
+              downloadUrl: "https://example.com/second",
+              conflict: null,
+            },
+          ],
+        },
+        importResult: null,
+        previewedRepoUrl: "https://github.com/anthropics/skills",
+        error: null,
+      };
+    });
+
+    renderView();
+
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
+      target: { value: "https://github.com/anthropics/skills" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
+
+    await screen.findByTestId("github-import-preview-workspace");
+    fireEvent.click(screen.getByRole("button", { name: /Second Skill/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Second skill full description")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Re-preview|重新预览/i }));
+
+    await waitFor(() => {
+      expect(mockPreviewGitHubRepoImport).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Second skill refreshed description")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("First skill full description")).not.toBeInTheDocument();
+    expect(screen.getByText("refresh-branch")).toBeInTheDocument();
   });
 
   it("resets the detail scroll position when switching active preview skills", async () => {
@@ -705,13 +775,13 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
-    await screen.findByText("First Skill");
+    await screen.findByTestId("github-import-preview-workspace");
     scrollTo.mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: /Second Skill/i }));
@@ -754,11 +824,11 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
     const dialog = await screen.findByRole("dialog");
     const content = dialog.querySelector('[data-slot="dialog-content"]');
@@ -814,11 +884,11 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
     expect(await screen.findByText("First Skill")).toBeInTheDocument();
     const detailPane = screen.getByTestId("github-import-detail-pane");
@@ -876,11 +946,11 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
     const summaryList = await screen.findByTestId("github-import-summary-list");
     const detailScroll = screen.getByTestId("github-import-detail-scroll");
@@ -921,7 +991,7 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
 
     expect(await screen.findByRole("button", { name: /Install to platforms/i })).toBeInTheDocument();
   });
@@ -975,19 +1045,19 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
-    await screen.findByText("First Skill");
+    await screen.findByTestId("github-import-preview-workspace");
 
     fireEvent.click(screen.getByRole("radio", { name: "Rename" }));
     fireEvent.change(screen.getByPlaceholderText("New skill id"), {
       target: { value: "first-skill-renamed" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Review import|检查导入内容/i }));
 
     const confirmSummary = await screen.findByTestId("github-import-confirm-summary");
     expect(within(confirmSummary).getByText("Ready to import")).toBeInTheDocument();
@@ -1027,7 +1097,7 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
 
     const resultHub = await screen.findByTestId("github-import-result-hub");
     expect(within(resultHub).getByText("Next steps")).toBeInTheDocument();
@@ -1044,11 +1114,11 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
-    fireEvent.change(screen.getByLabelText("GitHub repository URL"), {
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
+    fireEvent.change(screen.getByLabelText(/GitHub repository URL|GitHub 仓库 URL/i), {
       target: { value: "https://github.com/anthropics/skills" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview import" }));
+    fireEvent.click(screen.getByRole("button", { name: /Preview import|预览导入/i }));
 
     await waitFor(() => {
       expect(mockPreviewGitHubRepoImport).toHaveBeenCalledWith("https://github.com/anthropics/skills");
@@ -1074,7 +1144,7 @@ describe("MarketplaceView", () => {
 
     renderView();
 
-    fireEvent.click(screen.getByRole("button", { name: "Import GitHub repo" }));
+    fireEvent.click(screen.getByRole("button", { name: /Import GitHub repo|导入 GitHub 仓库/i }));
 
     expect(
       await screen.findByText(/Open Settings and save a GitHub Personal Access Token/i)
