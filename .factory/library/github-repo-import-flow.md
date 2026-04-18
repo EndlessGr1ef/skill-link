@@ -104,3 +104,12 @@ Actual preview/import assertions must be exercised on a real Tauri runtime. The 
 - Use built-in common mirror/proxy sources only for transport/connectivity failures (timeouts, connection reset, DNS/connect failures, unreachable upstream, similar network-path issues).
 - Do **not** use mirror fallback to mask explicit GitHub `401/403/429` denials; keep the existing actionable rate-limit/auth guidance for those cases.
 - Preserve preview-before-write semantics and canonical import behavior regardless of whether the successful path was direct GitHub or mirror fallback.
+
+
+## GitHub Auth Support Guidance
+
+- Add GitHub PAT support through app settings rather than through the import dialog input.
+- When a PAT exists, use it only for direct GitHub endpoints (`github.com`, `api.github.com`, `raw.githubusercontent.com`).
+- Never forward the PAT to public mirror/proxy endpoints; mirrors remain unauthenticated-only fallback paths.
+- A valid PAT should help the import flow avoid the low unauthenticated GitHub API quota path for public repositories.
+- Invalid or insufficient PATs must surface actionable auth feedback and preserve no-write preview/import semantics.
