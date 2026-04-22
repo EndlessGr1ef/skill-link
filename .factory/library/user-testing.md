@@ -75,3 +75,4 @@ For contract assertions on the native Tauri surface, capture:
 - Marketplace rows must remain observational; validators must not treat absence of mutation as optional
 - Use repeated-skill fixtures when validating duplicate-source behavior; distinct-name fixtures are insufficient
 - For backend/frontend compatibility fixes that unblock scrutiny before the full Claude UX lands, a native launch/count smoke check is acceptable for that fix feature; the full duplicate-row click-through remains owned by later Claude UX features and final user-testing validation.
+- For command-palette or global-search flows, prefer validating the underlying state transition with targeted tests first; native Tauri evidence may use launch/screenshot confirmation plus documented macOS accessibility limits when the command-palette surface is not reliably scriptable.
