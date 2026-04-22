@@ -74,3 +74,4 @@ For contract assertions on the native Tauri surface, capture:
 - Browser-only Vite runs are not sufficient proof for this mission
 - Marketplace rows must remain observational; validators must not treat absence of mutation as optional
 - Use repeated-skill fixtures when validating duplicate-source behavior; distinct-name fixtures are insufficient
+- For backend/frontend compatibility fixes that unblock scrutiny before the full Claude UX lands, a native launch/count smoke check is acceptable for that fix feature; the full duplicate-row click-through remains owned by later Claude UX features and final user-testing validation.
