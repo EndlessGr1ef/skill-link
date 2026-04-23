@@ -84,6 +84,7 @@ For contract assertions on the native Tauri surface, capture:
 
 - Launch the real app with `HOME=/tmp/skills-manage-test-fixtures/claude-multi-source pnpm tauri dev`.
 - Wait for `curl -sf http://localhost:24200` before attempting native inspection.
+- If port `24200` is already occupied by an existing repo dev server, reuse it with the `.factory/services.yaml` command `manual-validation-isolated-reuse-devurl-24200` instead of starting a second Vite instance on the same port.
 - Prefer macOS `screencapture` against the real app window for screenshots; prior runs found Quartz window capture can skew this Tauri webview.
 - For interaction and inspection, prefer PyObjC `ApplicationServices` / `AXUIElement` helpers over plain `System Events`; prior Claude and platform validations found AXUIElement markedly more reliable for sidebar/detail clicks.
 - If the native window renders but does not expose actionable AX children, capture screenshots plus any OCR/SQLite evidence and record the assertion as blocked instead of guessing.

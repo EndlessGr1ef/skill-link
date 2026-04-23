@@ -8,6 +8,7 @@ commands:
   clippy: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
   build: pnpm tauri build
   manual-validation-real-home: pnpm tauri dev
+  manual-validation-isolated-reuse-devurl-24200: HOME=/tmp/skills-manage-test-fixtures/claude-multi-source pnpm tauri dev --no-dev-server-wait -c '{"build":{"beforeDevCommand":"","devUrl":"http://localhost:24200"}}'
 
 services:
   tauri-dev-isolated:
