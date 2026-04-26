@@ -1,6 +1,6 @@
 # Skill Link
 
-跨平台 AI Agent Skill 链接工具。从 skill.sh、官方目录、GitHub 仓库浏览、预览、安装技能，一站式完成。
+Skill Link — 链接你的 AI Agent 技能。从 skill.sh、官方目录、GitHub 统一浏览、预览和安装技能。
 
 [English](README.md) | [中文文档](README_CN.md)
 

@@ -1,6 +1,6 @@
 # Skill Link
 
-Unified hub for AI agent skills. Browse, preview, and install skills from skill.sh, official directories, or GitHub — all from one desktop app.
+Skill Link — Link your AI agent skills. Browse, preview, and install from skill.sh, official directories, or GitHub — all from one desktop app.
 
 [English](README.md) | [中文文档](README_CN.md)
 
