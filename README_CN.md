@@ -1,6 +1,6 @@
 # Skill Link
 
-跨平台 AI Agent Skill 链接工具。一次安装，同步到所有 AI 编码工具。
+跨平台 AI Agent Skill 链接工具。从 skill.sh、官方目录、GitHub 仓库浏览、预览、安装技能，一站式完成。
 
 [English](README.md) | [中文文档](README_CN.md)
 
@@ -18,16 +18,37 @@
 
 Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的开放模式，使用 `~/.agents/skills/` 作为中央 canonical 目录，再通过符号链接把 skill 安装到各个平台，让同一份 skill 成为多个 AI coding 工具的单一事实来源。
 
+## Skill Link 新增能力
+
+相比上游 skills-manage，Skill Link 在以下方面做了增强：
+
+- **skill.sh 集成** — 在应用内直接搜索 skill.sh、浏览远程目录结构、解析安装地址并一键安装，无需离开应用。
+- **技能文件树** — 在 Skill 详情页和市场详情的抽屉中均可展开查看每个 skill 的内部文件结构，点击任意文件显示语法高亮预览。
+- **市场来源统一** — 推荐 / 官方源目录 / skill.sh 三 Tab 并存于同一市场页面。
+
 ## 核心能力
 
-- 中央技能库与按平台安装、卸载工作流。
-- 完整技能详情视图，支持 Markdown 预览、文件树浏览、原始源码查看和 AI 解释生成。
-- 通过技能集合整理和批量安装 skills。
-- 支持扫描本地项目级 skill 库的 Discover 能力。
-- 支持 marketplace 浏览，以及带鉴权请求和重试回退的 GitHub 仓库导入。
-- 支持从用户自定义路径安装 skill 的自定义扫描目录功能。
-- 通过延迟查询、懒加载索引和虚拟列表提升大规模 skill 库搜索体验。
-- 提供中英文界面、Catppuccin 主题、强调色、首次引导和响应式导航。
+### 搜索与安装
+
+- **skill.sh** — 搜索技能、浏览目录布局、一键安装到中央目录。
+- **官方源目录** — 浏览经过 publisher 验证的技能目录，支持搜索筛选。
+- **GitHub 导入** — 将任意公开 GitHub 仓库作为技能来源，支持鉴权请求与重试回退。
+- **扫描发现（Discover）** — 在磁盘上定位未管理的项目级技能并纳入中央管理。
+- **自定义扫描目录** — 从用户定义的路径安装技能。
+
+### 检视与预览
+
+- **技能文件树** — 可展开的目录树展示 skill 内全部文件；点击任意文件获取语法高亮预览。
+- **Markdown 预览** — 渲染的 SKILL.md 文本，搭配 frontmatter 元数据侧栏。
+- **AI 解释** — 自动生成技能功能的中文摘要。
+- **原始源码** — 直接阅读 SKILL.md 及其配套文件。
+
+### 管理
+
+- **中央技能库** — `~/.agents/skills/` 单一事实来源。
+- **按平台安装** — 通过符号链接或复制方式安装到任意支持的 AI 编码工具。
+- **技能集合** — 将技能分组管理，支持批量安装和 JSON 导入/导出。
+- **快速搜索** — 延迟查询、懒加载索引和虚拟列表，应对大规模技能库。
 
 ## 项目截图
 
@@ -35,13 +56,17 @@ Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的
 
 ![中央技能库视图](images/01.png)
 
+### 技能文件树 — 浏览 skill 内的每个文件
+
+![技能文件树](images/07.png)
+
 ### 查看特定平台的已安装技能
 
 ![平台技能视图](images/06.png)
 
-### 扫描本地项目技能库
+### 从 skill.sh 搜索和安装
 
-![项目技能库发现页](images/03.png)
+![skill.sh 集成](images/08.png)
 
 ### 浏览 marketplace 发布者与技能
 
@@ -54,6 +79,10 @@ Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的
 ### 管理可复用技能集合
 
 ![技能集合视图](images/05.png)
+
+### 扫描本地项目技能库
+
+![项目技能库发现页](images/03.png)
 
 ## 下载
 
@@ -119,7 +148,7 @@ xattr -dr com.apple.quarantine "/Applications/Skill Link.app"
 
 - **本地优先** — 元数据、集合、扫描结果、设置和 AI explanation 缓存都保存在 `~/.skill-link/db.sqlite` 或你自己管理的本地 skill 目录中。
 - **无遥测** — 应用不包含分析、崩溃上报或使用追踪。
-- **网络访问由功能触发** — 只有在你显式使用 marketplace 同步/下载、GitHub 导入或 AI explanation 时才会发起外部请求。
+- **网络访问由功能触发** — 只有在你显式使用 marketplace 同步/下载、skill.sh 搜索/安装、GitHub 导入或 AI explanation 时才会发起外部请求。
 - **凭据仅本地存储** — GitHub PAT 和 AI API key 会保存在本地 SQLite settings 表中，应用本身不提供静态加密。
 - 不要在 issue、PR、截图或日志里公开真实密钥。
 

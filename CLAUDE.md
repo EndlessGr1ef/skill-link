@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm install              # 安装依赖
 pnpm dev                  # 启动 Vite 开发服务器（端口 24200，单独前端调试用）
 pnpm build                # TypeScript 编译 + Vite 构建
-pnpm test                 # Vitest 运行全部测试（370+，含 3 个遗留的 Sidebar/Settings/PlatformIcon 失败，非本次改动引入）
+pnpm test                 # Vitest 运行全部测试
 pnpm test -- src/test/skillStore.test.ts  # 运行单个测试文件
 pnpm test:watch           # Vitest 监听模式
 pnpm typecheck            # tsc --noEmit 类型检查
@@ -20,7 +20,7 @@ pnpm lint                 # ESLint 检查
 ### Rust 后端（Tauri v2）
 
 ```bash
-cd src-tauri && cargo test           # 运行全部 Rust 测试（214+）
+cd src-tauri && cargo test           # 运行全部 Rust 测试
 cd src-tauri && cargo test db::      # 运行指定模块测试
 cd src-tauri && cargo clippy -- -D warnings  # Lint 检查
 ```
@@ -40,10 +40,10 @@ pnpm tauri build           # 构建可分发的桌面应用
 React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ──SQLx──▶  SQLite
 ```
 
-- **前端**：React 18 + TypeScript + Tailwind CSS 4 + shadcn/ui，Zustand 状态管理，React Router v7 路由
+- **前端**：React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui，Zustand 状态管理，React Router v7 路由
 - **后端**：Rust，通过 `#[tauri::command]` 宏暴露 40+ 个 IPC 命令，前端用 `invoke()` 调用
 - **数据库**：SQLite（WAL 模式），位于 `~/.skill-link/db.sqlite`，SQLx 异步驱动，schema 在 `db.rs` 中定义并自动迁移
-- **HTTP**：`reqwest` 用于 GitHub API 调用（Marketplace 源同步）和 AI API 调用（技能解释）
+- **HTTP**：`reqwest` 用于 GitHub API 调用和 AI API 调用（技能解释）
 
 ### 核心业务模型
 
@@ -53,7 +53,18 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 - **自动中央化（Auto-centralize）**：安装仅存在于某平台的技能到其他平台时，`linker.rs` 的 `ensure_centralized` 会自动将其拷贝到中央目录并更新 DB 的 `canonical_path`/`is_central`，再走正常 symlink/copy 流程。调用方（包括 `install_skill_to_agent_impl` 和 `install_skill_to_agent_copy_impl`）对此透明
 - **集合（Collection）**：技能分组，支持批量安装和 JSON 导入/导出
 - **发现（Discover）**：递归扫描磁盘上的项目级技能文件，主从分离布局（左面板项目列表 + 右面板技能详情）；`is_already_central` 在 DB 加载时根据文件系统重新计算，不是静态快照
-- **技能市场（Marketplace）**：从 GitHub 仓库远程浏览和安装技能，三 Tab 页面（推荐/官方源目录/我的源）
+- **文件树（File Tree）**：详细页面和 marketplace 详情抽屉中均可展开以浏览 skill 内部文件结构，点击任意文件显示语法高亮预览
+
+### 技能来源（Marketplace Sources）
+
+| 来源 | 数据后端 | UI 位置 |
+|------|---------|---------|
+| Recommended skills | `officialSources.ts`（静态 JSON） | Marketplace → Recommended tab |
+| Official directories | `sync_registry` / `search_marketplace_skills` | Marketplace → Official Directory tab |
+| **skill.sh** | `search_skills_sh` / `browse_skills_sh_directory` / `install_from_skills_sh` | Marketplace → skill.sh tab |
+| GitHub import | `github_import.rs` | Marketplace → GitHub Import button |
+
+其中 **skill.sh** 是该 fork 的独特能力：用户在 Marketplace 第三 Tab 直接输入关键词搜索 skill.sh 上的技能，查看远程目录结构，然后一键安装到中央目录。三条路径在 `marketplace.rs` 中统一协调，确保下载/预览/安装行为一致。
 
 ### 页面路由
 
@@ -61,10 +72,10 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 |------|------|---------|
 | `/central` | 中央技能库 | 技能卡片列表（两列） |
 | `/platform/:agentId` | 平台技能视图 | 技能卡片列表（两列） |
-| `/skill/:skillId` | 技能详情 | **双栏布局**：左栏 SKILL.md 预览（全高），右栏 sidebar（metadata + 紧凑图标式安装状态 + collections） |
+| `/skill/:skillId` | 技能详情 | **双栏布局**：左栏 SKILL.md 预览（全高）+ **文件树**，右栏 sidebar（metadata + 安装状态 + collections） |
 | `/collections` | 技能集合 | 上方卡片横排选中 + 下方技能列表 |
 | `/discover`, `/discover/:projectPath` | 项目技能库 | 左面板项目列表 + 右面板技能详情 |
-| `/marketplace` | 技能市场 | 三 Tab（推荐/官方源/我的源） |
+| `/marketplace` | 技能市场 | 三 Tab（推荐/官方源目录/skill.sh）+ GitHub 导入弹窗 |
 | `/settings` | 设置 | 卡片分区 |
 
 ### IPC 命令模块（src-tauri/src/commands/）
@@ -78,7 +89,17 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 | `collections.rs` | 集合管理、批量安装、导入导出 |
 | `discover.rs` | 全磁盘项目扫描和导入，支持 /Applications 目录 |
 | `settings.rs` | 扫描目录和应用设置的键值存储 |
-| `marketplace.rs` | GitHub 源同步、远程技能安装、AI 技能解释（Claude/GLM/MiniMax/Kimi/DeepSeek/OpenRouter） |
+| `marketplace.rs` | 官方目录同步/搜索、**skill.sh 搜索/目录浏览/安装**、AI 技能解释（Claude/GLM/MiniMax/Kimi/DeepSeek/OpenRouter） |
+| `github_import.rs` | 独立于 marketplace 的 GitHub 仓库导入（扫描 repo 根目录 + skills/ 子目录） |
+
+**skill.sh 专属命令**（均位于 `marketplace.rs`）：
+
+| 命令 | 功能 |
+|------|------|
+| `search_skills_sh` | 按关键词搜索 skill.sh 上的技能 |
+| `resolve_skills_sh_url` | 解析 skill.sh URL，返回仓库信息和对应的 SKILL.md |
+| `browse_skills_sh_directory` | 浏览远程仓库中的技能目录结构 |
+| `install_from_skills_sh` | 从 skill.sh 安装技能到中央目录 |
 
 ### 前端静态数据（src/data/）
 
@@ -92,13 +113,20 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 - **`UnifiedSkillCard`**（`src/components/skill/UnifiedSkillCard.tsx`）：**所有页面的技能卡片唯一实现**。通过 props 自适应 5 种场景（central/platform/discover/marketplace/collection），不要在各页面重建内联卡片组件。统一样式：`rounded-xl` + `ring-1 ring-border` + `bg-card` + `shadow-sm`
 - **`InstallDialog`**（`src/components/central/InstallDialog.tsx`）：默认**勾选已链接平台**（反映当前状态），宽度 `sm:max-w-2xl`，平台列表两列网格。`CollectionInstallDialog` 同宽度布局但默认勾选所有 detected 平台（批量首装场景）
 - **平台图标切换**：`UnifiedSkillCard` 的 `platformIcons` prop 分 LOBSTER/CODING 两行显示，点击图标即时切换安装/卸载（symlink 方式），走 `centralSkillsStore.togglePlatformLink`
+- **文件树**：`SkillDetailView`（页面）和 `MarketplaceSkillDetailDrawer`（抽屉）各自独立实现文件树，但共享 `fileTree.ts` 中的目录结构构建函数和 `FileTreeNode.tsx` 组件。添加新的文件树入口时，复用这两个单元
+
+### 技能详情页的文件树界限
+
+- `/skill/:skillId` 页面使用 `SkillDetailView.tsx`，文件树显示本地 central repo 中的技能文件
+- Marketplace 详情抽屉使用 `MarketplaceSkillDetailDrawer.tsx`，文件树显示远程仓库克隆/下载后的缓存目录
+- 两者的文件树组件共享同一套 `FileTreeNode.tsx` 和 `fileTree.ts`，但数据来源不同（一个来自 `fileTreeFromSkill` IPC，一个来自 `browse_skills_sh_directory` 或本地缓存扫描）
 
 ## 代码约定
 
 - **路径别名**：`@/` 映射到 `src/`（在 vite.config.ts 和 tsconfig.json 中配置）
 - **状态管理**：每个业务域一个独立的 Zustand store（`src/stores/`），store 内部直接调用 `invoke()` 与后端通信；不要在组件里直接 `invoke()`
 - **技能卡片**：只用 `UnifiedSkillCard`，不要新建场景专用卡片组件
-- **主题系统**：Catppuccin 3 种风格（Mocha/Frappe/Latte），14 种 accent 配色，通过 `data-theme` 和 `data-accent` HTML 属性切换
+- **主题系统**：Catppuccin 4 种风格（Mocha/Macchiato/Frappe/Latte），14 种 accent 配色，通过 `data-theme` 和 `data-accent` HTML 属性切换
 - **国际化**：中英双语（`src/i18n/`），所有用户可见文本必须走 i18n
 - **测试**：Vitest + jsdom + React Testing Library，setup 在 `src/test/setup.ts`；Tauri `invoke` 在测试中通过 `window.__TAURI_INTERNALS__` mock
 - **未使用变量**：ESLint 规则允许 `_` 前缀的未使用参数和变量

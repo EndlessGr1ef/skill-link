@@ -1,6 +1,6 @@
 # Skill Link
 
-Cross-platform desktop app for linking AI agent skills across your coding tools. Install once, sync everywhere.
+Unified hub for AI agent skills. Browse, preview, and install skills from skill.sh, official directories, or GitHub — all from one desktop app.
 
 [English](README.md) | [中文文档](README_CN.md)
 
@@ -18,16 +18,38 @@ Cross-platform desktop app for linking AI agent skills across your coding tools.
 
 Skill Link follows the [Agent Skills](https://github.com/anthropics/agent-skills) open pattern and uses `~/.agents/skills/` as the canonical central directory. Skills can then be linked to individual platforms through symlinks, so one source of truth can drive multiple AI coding tools.
 
+## What Skill Link Adds
+
+Compared to the upstream skills-manage, Skill Link brings:
+
+- **skill.sh integration** — search, browse directory listings, resolve install URLs, and install skills directly from [skill.sh](https://skill.sh) without leaving the app.
+- **Skill file tree** — inspect every file inside a skill with syntax-highlighted preview, available in both the full detail page and the marketplace detail drawer.
+- **Marketplace source unification** — three parallel sources (recommended, official publisher directories, and skill.sh) under one tabbed interface.
+
 ## Highlights
 
-- Central skill library plus per-platform install and uninstall flows.
-- Full skill detail view with Markdown preview, raw source view, file tree browsing, and AI explanation generation.
-- Collections for organizing skills and batch-installing them to platforms.
-- Discover scan for project-level skill libraries on local disks.
-- Marketplace browsing and GitHub repository import with authenticated requests and retry fallback.
-- Fast search for large skill libraries with deferred queries, lazy indexing, and virtualization.
-- Custom scan directory support for installing skills from user-defined paths.
-- Bilingual UI, Catppuccin themes, accent colors, onboarding, and responsive navigation.
+### Search & Install
+
+- **skill.sh** — search skills.sh, browse directory layouts, and install with one click.
+- **Official directory** — browse publisher-verified skill directories; search and filter across all listings.
+- **GitHub import** — import any public GitHub repository as a skill source with authenticated requests and retry fallback.
+- **Discover scan** — find unmanaged project-level skills on local disk and centralize them.
+- **Custom scan directories** — install skills from user-defined paths.
+
+### Inspect
+
+- **Skill file tree** — expandable directory tree showing every file in a skill; click any file for syntax-highlighted Markdown or source preview.
+- **Markdown preview** — rendered SKILL.md with frontmatter metadata sidebar.
+- **AI explanation** — automatically generate a plain-English summary of what a skill does.
+- **Raw source** — read the original SKILL.md and supporting files directly.
+
+### Manage
+
+- **Central skill library** — single source of truth under `~/.agents/skills/`.
+- **Per-platform install** — symlink or copy skills to any supported AI coding tool.
+- **Collections** — organize skills into groups, batch-install, or export/import as JSON.
+- **Fast search** — deferred queries, lazy indexing, and list virtualization for large libraries.
+- **Bilingual UI** — English and Chinese with Catppuccin 4-flavor palette and accent colors.
 
 ## Screenshots
 
@@ -35,13 +57,17 @@ Skill Link follows the [Agent Skills](https://github.com/anthropics/agent-skills
 
 ![Central skills library view](images/01.png)
 
+### Skill file tree — browse every file inside a skill
+
+![Skill file tree](images/07.png)
+
 ### Review installed skills on a specific platform
 
 ![Platform skill view](images/06.png)
 
-### Discover local project skill libraries
+### Search and install from skill.sh
 
-![Discover project skill libraries](images/03.png)
+![skill.sh integration](images/08.png)
 
 ### Browse marketplace publishers and skills
 
@@ -54,6 +80,10 @@ Skill Link follows the [Agent Skills](https://github.com/anthropics/agent-skills
 ### Organize reusable collections
 
 ![Skill collections view](images/05.png)
+
+### Discover local project skill libraries
+
+![Discover project skill libraries](images/03.png)
 
 ## Download
 
