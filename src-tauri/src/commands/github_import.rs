@@ -154,8 +154,8 @@ pub(crate) struct RemoteSkillCandidate {
 }
 
 #[derive(Debug, Clone, Default)]
-struct GitHubRepoSnapshot {
-    files: HashMap<String, Vec<u8>>,
+pub(crate) struct GitHubRepoSnapshot {
+    pub(crate) files: HashMap<String, Vec<u8>>,
 }
 
 const GITHUB_PAT_SETTING_KEY: &str = "github_pat";
@@ -686,7 +686,7 @@ pub(crate) async fn github_direct_auth_from_settings(
 
 fn github_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .build()
         .map_err(|e| e.to_string())
 }
@@ -841,7 +841,7 @@ fn classify_skill_manifest_path(path: &str) -> Option<SnapshotSkillManifest> {
     }
 }
 
-async fn download_repo_snapshot(
+pub(crate) async fn download_repo_snapshot(
     client: &reqwest::Client,
     repo: &GitHubRepoRef,
     auth_token: Option<&str>,
@@ -958,21 +958,21 @@ fn relative_archive_path<R: Read>(entry: &tar::Entry<'_, R>) -> Result<String, S
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct SnapshotSourceFile {
+pub(crate) struct SnapshotSourceFile {
     repo_path: String,
     relative_path: String,
     byte_len: usize,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct GitHubImportProgressState {
+pub(crate) struct GitHubImportProgressState {
     completed_files: usize,
     total_files: usize,
     completed_bytes: u64,
     total_bytes: u64,
 }
 
-fn collect_snapshot_source_files(
+pub(crate) fn collect_snapshot_source_files(
     snapshot: &GitHubRepoSnapshot,
     source_path: &str,
 ) -> Result<Vec<SnapshotSourceFile>, String> {
@@ -1014,7 +1014,7 @@ fn collect_snapshot_source_files(
     Ok(files)
 }
 
-fn write_snapshot_source_to_target(
+pub(crate) fn write_snapshot_source_to_target(
     snapshot: &GitHubRepoSnapshot,
     files: &[SnapshotSourceFile],
     target_dir: &Path,

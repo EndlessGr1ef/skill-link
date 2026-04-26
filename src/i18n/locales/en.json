@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Skill Link"
+    "name": "skills-manage"
   },
   "common": {
     "install": "Install",
@@ -369,7 +369,7 @@
     "saving": "Saving..."
   },
   "empty": {
-    "welcomeTitle": "Welcome to Skill Link!",
+    "welcomeTitle": "Welcome to skills-manage!",
     "welcomeDesc": "No skills found in ~/.agents/skills/. Get started by creating a SKILL.md file there, or add custom scan directories in Settings.",
     "createHint": "Create a skill directory at",
     "goToSettings": "Go to Settings"
@@ -392,7 +392,7 @@
   },
   "discover": {
     "title": "Discover Project Skills",
-    "desc": "Scan your project directories for skills not yet managed by Skill Link.",
+    "desc": "Scan your project directories for skills not yet managed by skills-manage.",
     "discoverBtn": "Discover",
     "discoverLabel": "Discover project skills",
     "scanRoots": "Scan Roots",

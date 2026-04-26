@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use super::scanner::parse_skill_md;
 use crate::commands::discover::ImportResult;
 use crate::db::{self, DbPool, SkillInstallation};
 use crate::path_utils::central_skills_dir;
 use crate::AppState;
-use super::scanner::parse_skill_md;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -480,7 +480,10 @@ pub async fn uninstall_skill_from_agent(
 
 /// Core import-to-central logic — copies a skill from its current location
 /// to the central skills directory and updates the database.
-pub async fn import_skill_to_central_impl(pool: &DbPool, skill_id: &str) -> Result<ImportResult, String> {
+pub async fn import_skill_to_central_impl(
+    pool: &DbPool,
+    skill_id: &str,
+) -> Result<ImportResult, String> {
     let skill = db::get_skill_by_id(pool, skill_id)
         .await?
         .ok_or_else(|| format!("Skill '{}' not found", skill_id))?;
@@ -489,7 +492,10 @@ pub async fn import_skill_to_central_impl(pool: &DbPool, skill_id: &str) -> Resu
     let target_dir = central_dir.join(&skill.id);
 
     if target_dir.exists() {
-        return Err(format!("Skill '{}' already exists in central skills", skill.id));
+        return Err(format!(
+            "Skill '{}' already exists in central skills",
+            skill.id
+        ));
     }
 
     let src_dir = Path::new(&skill.file_path)

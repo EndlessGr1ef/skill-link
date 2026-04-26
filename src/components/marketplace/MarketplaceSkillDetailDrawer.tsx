@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import i18n from "@/i18n";
 import { FileTreeNode } from "@/components/skill/FileTreeNode";
 import { buildSkillDirectoryTree } from "@/lib/fileTree";
-import type { SkillsShFileEntry } from "@/types";
+import type { SelectedSkillFile, SkillsShFileEntry } from "@/types";
 
 export interface MarketplaceSkillDetail {
   id: string;
@@ -67,6 +67,7 @@ export function MarketplaceSkillDetailDrawer({
   const explanationRequestRef = useRef(0);
   const explanationUnlistenRef = useRef<(() => void) | null>(null);
   const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(new Set());
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const browserMode = !isTauriRuntime();
 
   const directoryTree = useMemo(() => {
@@ -91,35 +92,98 @@ export function MarketplaceSkillDetailDrawer({
     explanationUnlistenRef.current = null;
   }, []);
 
-  const fetchContent = useCallback(async () => {
-    if (!open || !skill?.downloadUrl) {
-      return;
-    }
+  /** Derive a raw.githubusercontent.com URL for an individual file
+   *  from the SKILL.md downloadUrl and the file's repo-relative path. */
+  const getFileDownloadUrl = useCallback(
+    (filePath: string): string => {
+      if (!skill?.downloadUrl) return "";
+      const rawBase = "https://raw.githubusercontent.com/";
+      if (!skill.downloadUrl.startsWith(rawBase)) return "";
+      const base = skill.downloadUrl.replace(/\/SKILL\.md(#|\?|$).*$/, "");
+      const rest = base.slice(rawBase.length);
+      const parts = rest.split("/");
+      if (parts.length < 3) return "";
+      return rawBase + parts[0] + "/" + parts[1] + "/" + parts[2] + "/" + filePath;
+    },
+    [skill?.downloadUrl]
+  );
 
+  const isMarkdownFile = useCallback((filePath: string): boolean => {
+    return /\.md$/i.test(filePath);
+  }, []);
+
+  const fetchFileContent = useCallback(async (filePath: string) => {
+    const url = getFileDownloadUrl(filePath);
+    if (!url) return;
     setIsLoadingContent(true);
     try {
-      const resp = await fetch(skill.downloadUrl);
+      const resp = await fetch(url);
       if (!resp.ok) {
         throw new Error(`HTTP ${resp.status}`);
       }
       setContent(await resp.text());
     } catch {
-      setContent("Failed to load SKILL.md content.");
+      setContent("Failed to load file content.");
     } finally {
       setIsLoadingContent(false);
     }
-  }, [open, skill?.downloadUrl]);
+  }, [getFileDownloadUrl]);
+
+  /** Loads the initial content when the drawer opens. */
+  const loadInitialContent = useCallback(async () => {
+    if (!open || !skill) return;
+    setContent("");
+    setExplanation(null);
+    setExplanationError(null);
+    setShowExplanation(false);
+
+    if (skill.files && skill.files.length > 0) {
+      // skills.sh mode: default-select SKILL.md
+      const skillMd = skill.files.find(
+        (f) => !f.is_dir && f.name === "SKILL.md"
+      );
+      if (skillMd) {
+        setSelectedFilePath(skillMd.path);
+        setViewMode("markdown");
+        await fetchFileContent(skillMd.path);
+        return;
+      }
+      // No SKILL.md found; clear selection
+      setSelectedFilePath(null);
+      setViewMode("raw");
+      return;
+    }
+
+    // Legacy mode: fetch downloadUrl directly
+    if (skill.downloadUrl) {
+      setSelectedFilePath(null);
+      setViewMode("markdown");
+      setIsLoadingContent(true);
+      try {
+        const resp = await fetch(skill.downloadUrl);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        setContent(await resp.text());
+      } catch {
+        setContent("Failed to load SKILL.md content.");
+      } finally {
+        setIsLoadingContent(false);
+      }
+    }
+  }, [open, skill, fetchFileContent]);
 
   useEffect(() => {
-    if (open && skill?.downloadUrl) {
-      setContent("");
-      setExplanation(null);
-      setExplanationError(null);
-      setShowExplanation(false);
-      setViewMode("markdown");
-      void fetchContent();
+    if (open && skill) {
+      void loadInitialContent();
     }
-  }, [open, skill?.downloadUrl, fetchContent]);
+  }, [open, skill, loadInitialContent]);
+
+  function handleSelectFile(file: SelectedSkillFile) {
+    setSelectedFilePath(file.path);
+    setViewMode(isMarkdownFile(file.path) ? "markdown" : "raw");
+    void fetchFileContent(file.path);
+  }
 
   useEffect(() => {
     if (!open) {
@@ -345,12 +409,14 @@ export function MarketplaceSkillDetailDrawer({
                     <Loader2 className="size-4 animate-spin" />
                     {t("common.loading")}
                   </div>
-                ) : viewMode === "markdown" ? (
+                ) : viewMode === "markdown" && (!selectedFilePath || isMarkdownFile(selectedFilePath)) ? (
                   <div className="space-y-4">
-                    <SkillFrontmatterCard
-                      data={displayContent.frontmatterData}
-                      raw={displayContent.frontmatterRaw}
-                    />
+                    {(!selectedFilePath || selectedFilePath.endsWith("/SKILL.md")) ? (
+                      <SkillFrontmatterCard
+                        data={displayContent.frontmatterData}
+                        raw={displayContent.frontmatterRaw}
+                      />
+                    ) : null}
                     <div className="prose prose-sm dark:prose-invert max-w-none rounded-xl border border-border/70 bg-background/60 p-4 markdown-body">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {displayContent.body}
@@ -379,8 +445,10 @@ export function MarketplaceSkillDetailDrawer({
                           key={node.path}
                           node={node}
                           level={0}
+                          selectedPath={selectedFilePath}
                           expandedDirectories={expandedDirectories}
                           onToggleDirectory={handleToggleDirectory}
+                          onSelectFile={handleSelectFile}
                         />
                       ))}
                     </div>
