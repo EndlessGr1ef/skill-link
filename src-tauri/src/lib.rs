@@ -102,6 +102,7 @@ pub fn run() {
             commands::marketplace::search_skills_sh,
             commands::marketplace::resolve_skills_sh_url,
             commands::marketplace::browse_skills_sh_directory,
+            commands::marketplace::read_skills_sh_file,
             commands::marketplace::install_from_skills_sh,
             commands::marketplace::explain_skill,
             commands::marketplace::get_skill_explanation,

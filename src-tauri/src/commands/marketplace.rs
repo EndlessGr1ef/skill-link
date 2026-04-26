@@ -509,7 +509,7 @@ pub async fn install_marketplace_skill(
 
     // Download SKILL.md content
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -558,7 +558,7 @@ pub async fn search_skills_sh(
     let limit = limit.unwrap_or(10).min(50);
 
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -628,10 +628,8 @@ pub async fn search_skills_sh(
         .collect();
 
     let star_results = futures_util::future::join_all(star_futs).await;
-    let star_map: std::collections::HashMap<String, u64> = star_results
-        .into_iter()
-        .flatten()
-        .collect();
+    let star_map: std::collections::HashMap<String, u64> =
+        star_results.into_iter().flatten().collect();
 
     for skill in &mut skills {
         skill.stars = star_map.get(&skill.source).copied();
@@ -644,6 +642,44 @@ pub async fn search_skills_sh(
 /// Only the top 2 are tried as direct GETs since >95% of skills live at
 /// one of these paths.  Everything else falls through to the tree API.
 const COMMON_SKILL_PREFIXES: &[&str] = &["", "skills/"];
+
+/// Extract the repo-relative directory path from a raw.githubusercontent.com SKILL.md URL.
+///
+/// # Examples
+///
+/// ```ignore
+/// let url = "https://raw.githubusercontent.com/owner/repo/branch/skills/my-skill/SKILL.md";
+/// assert_eq!(extract_dir_path(url), Some("skills/my-skill".to_string()));
+/// ```
+fn extract_dir_path(md_url: &str) -> Option<String> {
+    let suffix = md_url.strip_suffix("/SKILL.md")?;
+    let parts: Vec<&str> = suffix.split('/').collect();
+    // ["https:", "", "raw.githubusercontent.com", owner, repo, branch, ...rest]
+    if parts.len() > 6 {
+        Some(parts[6..].join("/"))
+    } else {
+        Some(String::new())
+    }
+}
+
+/// Find the repo-relative path to a skill directory in a downloaded snapshot
+/// by matching the last directory component against skill_id.
+fn find_skill_path_in_snapshot(
+    snapshot: &github_import::GitHubRepoSnapshot,
+    skill_id: &str,
+) -> Option<String> {
+    for path in snapshot.files.keys() {
+        let p = std::path::Path::new(path);
+        if p.file_name().and_then(|n| n.to_str()) != Some("SKILL.md") {
+            continue;
+        }
+        let parent = p.parent().unwrap_or(std::path::Path::new(""));
+        if parent.file_name().and_then(|n| n.to_str()) == Some(skill_id) {
+            return Some(parent.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
 
 /// Try to find SKILL.md in a repo.
 ///
@@ -663,14 +699,17 @@ async fn find_skill_md_url(
     let futs: Vec<_> = COMMON_SKILL_PREFIXES
         .iter()
         .map(|prefix| {
+            let path = format!("{}{}", prefix, skill_id);
             let url = format!(
-                "https://raw.githubusercontent.com/{}/{}/{}{}/SKILL.md",
-                owner, repo, branch, prefix
+                "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                owner, repo, branch, path
             );
-            async {
-                let resp = client.get(&url).send().await.ok()?;
+            // Try {prefix}{skill_id}/SKILL.md
+            let skill_md_url = format!("{}/SKILL.md", url);
+            async move {
+                let resp = client.get(&skill_md_url).send().await.ok()?;
                 if resp.status().is_success() {
-                    Some(url)
+                    Some(skill_md_url)
                 } else {
                     None
                 }
@@ -679,7 +718,7 @@ async fn find_skill_md_url(
         .collect();
 
     let results = futures_util::future::join_all(futs).await;
-    for url in results.into_iter().flatten() {
+    if let Some(url) = results.into_iter().flatten().next() {
         return Ok(url);
     }
 
@@ -740,39 +779,36 @@ pub async fn browse_skills_sh_directory(
     let auth = auth_str.as_deref();
     let repo = match github_import::resolve_repo_ref(&repo_url, auth).await {
         Ok(r) => r,
-        Err(e) if auth.is_some() => {
-            github_import::resolve_repo_ref(&repo_url, None).await.map_err(|_| e)?
-        }
+        Err(e) if auth.is_some() => github_import::resolve_repo_ref(&repo_url, None)
+            .await
+            .map_err(|_| e)?,
         Err(e) => return Err(e),
     };
 
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .build()
         .map_err(|e| e.to_string())?;
 
-    let md_url = find_skill_md_url(&client, &repo.owner, &repo.repo, &repo.branch, &skill_id, auth).await?;
+    let md_url = find_skill_md_url(
+        &client,
+        &repo.owner,
+        &repo.repo,
+        &repo.branch,
+        &skill_id,
+        auth,
+    )
+    .await?;
 
     // Extract directory path from the resolved URL
-    // URL: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{dir...}/SKILL.md
-    let dir_path = md_url
-        .strip_suffix("/SKILL.md")
-        .and_then(|u| {
-            let parts: Vec<&str> = u.split('/').collect();
-            // parts = ["https:", "", "raw.githubusercontent.com", owner, repo, branch, ...rest]
-            if parts.len() > 6 {
-                Some(parts[6..].join("/"))
-            } else {
-                Some(String::new())
-            }
-        })
-        .unwrap_or_default();
+    let dir_path = extract_dir_path(&md_url).unwrap_or_default();
 
-    let api_url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
-        repo.owner, repo.repo, dir_path, repo.branch
+    // Use the recursive Tree API to get all files under the skill directory
+    let tree_url = format!(
+        "https://api.github.com/repos/{}/{}/git/trees/{}?recursive=1",
+        repo.owner, repo.repo, repo.branch
     );
-    let resp = github_import::send_with_auth_fallback(&client, &api_url, auth)
+    let resp = github_import::send_with_auth_fallback(&client, &tree_url, auth)
         .await
         .map_err(|e| format!("GitHub API request failed: {}", e))?;
 
@@ -780,22 +816,107 @@ pub async fn browse_skills_sh_directory(
         return Err(format!("GitHub API returned {}", resp.status()));
     }
 
-    let entries: Vec<serde_json::Value> = resp
+    let data: serde_json::Value = resp
         .json()
         .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        .map_err(|e| format!("Failed to parse tree: {}", e))?;
 
-    let files = entries
-        .into_iter()
-        .filter_map(|entry| {
-            let name = entry.get("name")?.as_str()?.to_string();
-            let path = entry.get("path")?.as_str()?.to_string();
-            let is_dir = entry.get("type")?.as_str() == Some("dir");
-            Some(SkillsShFileEntry { name, path, is_dir })
-        })
-        .collect();
+    let files = tree_entries_under_dir(&data, &dir_path);
 
     Ok(files)
+}
+
+/// Extract flat file entries under `dir_path` from a recursive GitHub Tree API response.
+///
+/// Returns entries with `name` derived from the last path segment, full repo-relative
+/// `path`, and `is_dir` = true for tree entries.
+/// The directory entry itself is included so the frontend tree builder can nest children
+/// under it.
+fn tree_entries_under_dir(tree_data: &serde_json::Value, dir_path: &str) -> Vec<SkillsShFileEntry> {
+    let prefix = if dir_path.is_empty() {
+        String::new()
+    } else {
+        format!("{}/", dir_path)
+    };
+
+    let mut files: Vec<SkillsShFileEntry> = Vec::new();
+
+    let tree = match tree_data.get("tree").and_then(|t| t.as_array()) {
+        Some(t) => t,
+        None => return files,
+    };
+
+    for entry in tree {
+        let path = match entry.get("path").and_then(|p| p.as_str()) {
+            Some(p) => p,
+            None => continue,
+        };
+
+        // Skip entries not under the skill directory, or the dir itself
+        if path == dir_path {
+            continue;
+        }
+        if !prefix.is_empty() && !path.starts_with(&prefix) {
+            continue;
+        }
+
+        let is_dir = entry.get("type").and_then(|t| t.as_str()) == Some("tree");
+        let name = path.rsplit('/').next().unwrap_or(path).to_string();
+
+        files.push(SkillsShFileEntry {
+            name,
+            path: path.to_string(),
+            is_dir,
+        });
+    }
+
+    files
+}
+
+/// Read the text content of a remote file from a skills.sh source repository.
+///
+/// Resolves the repo ref (owner/repo/branch) from `source`, then fetches the file at
+/// `file_path` (repo-relative) via raw.githubusercontent.com.
+#[tauri::command]
+pub async fn read_skills_sh_file(
+    state: State<'_, AppState>,
+    source: String,
+    file_path: String,
+) -> Result<String, String> {
+    let repo_url = format!("https://github.com/{}", source);
+    let auth_str = github_import::github_direct_auth_from_settings(&state.db).await?;
+    let auth = auth_str.as_deref();
+    let repo = match github_import::resolve_repo_ref(&repo_url, auth).await {
+        Ok(r) => r,
+        Err(e) if auth.is_some() => github_import::resolve_repo_ref(&repo_url, None)
+            .await
+            .map_err(|_| e)?,
+        Err(e) => return Err(e),
+    };
+
+    let client = reqwest::Client::builder()
+        .user_agent("skills-manage/0.9.1")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let raw_url = format!(
+        "https://raw.githubusercontent.com/{}/{}/{}/{}",
+        repo.owner, repo.repo, repo.branch, file_path
+    );
+
+    let resp = client
+        .get(&raw_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch file: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("File fetch returned {}", resp.status()));
+    }
+
+    resp.text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))
 }
 
 #[tauri::command]
@@ -809,18 +930,26 @@ pub async fn resolve_skills_sh_url(
     let auth = auth_str.as_deref();
     let repo = match github_import::resolve_repo_ref(&repo_url, auth).await {
         Ok(r) => r,
-        Err(e) if auth.is_some() => {
-            github_import::resolve_repo_ref(&repo_url, None).await.map_err(|_| e)?
-        }
+        Err(e) if auth.is_some() => github_import::resolve_repo_ref(&repo_url, None)
+            .await
+            .map_err(|_| e)?,
         Err(e) => return Err(e),
     };
 
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .build()
         .map_err(|e| e.to_string())?;
 
-    find_skill_md_url(&client, &repo.owner, &repo.repo, &repo.branch, &skill_id, auth).await
+    find_skill_md_url(
+        &client,
+        &repo.owner,
+        &repo.repo,
+        &repo.branch,
+        &skill_id,
+        auth,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -832,53 +961,59 @@ pub async fn install_from_skills_sh(
     let repo_url = format!("https://github.com/{}", source);
     let auth_str = github_import::github_direct_auth_from_settings(&state.db).await?;
     let auth = auth_str.as_deref();
-    let repo = github_import::resolve_repo_ref(&repo_url, auth).await?;
+    let repo = match github_import::resolve_repo_ref(&repo_url, auth).await {
+        Ok(r) => r,
+        Err(e) if auth.is_some() => github_import::resolve_repo_ref(&repo_url, None)
+            .await
+            .map_err(|_| e)?,
+        Err(e) => return Err(e),
+    };
 
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .build()
         .map_err(|e| e.to_string())?;
 
-    // Use user's GitHub token for tree search (raw.githubusercontent.com doesn't need auth)
-    let md_url = find_skill_md_url(
-        &client,
-        &repo.owner,
-        &repo.repo,
-        &repo.branch,
-        &skill_id,
-        auth,
-    )
-    .await?;
+    // Download full repo snapshot (tarball) and find the skill directory
+    let snapshot = github_import::download_repo_snapshot(&client, &repo, auth).await?;
 
-    let resp = client
-        .get(&md_url)
-        .send()
-        .await
-        .map_err(|e| format!("Download failed: {}", e))?;
+    // Find the skill directory by matching the last directory component against skill_id
+    let source_path = find_skill_path_in_snapshot(&snapshot, &skill_id).ok_or_else(|| {
+        format!(
+            "Could not find skill '{}' in repository '{}'",
+            skill_id, source
+        )
+    })?;
 
-    if !resp.status().is_success() {
-        return Err(format!("Download returned {}", resp.status()));
-    }
-
-    let content = resp
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
-
-    let frontmatter =
-        github_import::parse_frontmatter(&content)
-            .ok_or_else(|| "Skill is missing valid frontmatter.".to_string())?;
+    // Read and parse SKILL.md from the snapshot
+    let skill_md_path_in_repo = format!("{}/SKILL.md", source_path);
+    let raw_content = snapshot.files.get(&skill_md_path_in_repo).ok_or_else(|| {
+        format!(
+            "SKILL.md not found at '{}' in snapshot",
+            skill_md_path_in_repo
+        )
+    })?;
+    let content_str =
+        std::str::from_utf8(raw_content).map_err(|_| "SKILL.md is not valid UTF-8.".to_string())?;
+    let frontmatter = github_import::parse_frontmatter(content_str)
+        .ok_or_else(|| "Skill is missing valid frontmatter.".to_string())?;
 
     let skill_name = frontmatter.name;
 
-    // Write to central
+    // Collect all files from the skill directory and write them to central dir
+    let source_files = github_import::collect_snapshot_source_files(&snapshot, &source_path)?;
     let skill_dir = central_skills_dir().join(&skill_name);
-    std::fs::create_dir_all(&skill_dir)
-        .map_err(|e| format!("Failed to create directory: {}", e))?;
+    let mut progress_state = github_import::GitHubImportProgressState::default();
+    github_import::write_snapshot_source_to_target(
+        &snapshot,
+        &source_files,
+        &skill_dir,
+        &source_path,
+        &mut progress_state,
+        None,
+    )?;
 
     let skill_md_path = skill_dir.join("SKILL.md");
-    std::fs::write(&skill_md_path, &content)
-        .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
 
     // Upsert to DB
     let db_skill = crate::db::Skill {
@@ -947,30 +1082,6 @@ fn detect_explanation_api_protocol(api_url: &str) -> ExplanationApiProtocol {
     }
 
     ExplanationApiProtocol::Unknown
-}
-
-/// Resolve API protocol: explicit user preference overrides URL auto-detection.
-fn resolve_api_protocol(
-    api_url: &str,
-    explicit_protocol: Option<&str>,
-) -> ExplanationApiProtocol {
-    match explicit_protocol {
-        Some("openai") => ExplanationApiProtocol::OpenAiCompatible,
-        Some("anthropic") => ExplanationApiProtocol::AnthropicCompatible,
-        _ => detect_explanation_api_protocol(api_url),
-    }
-}
-
-fn resolve_custom_url(raw_url: &str, protocol: &ExplanationApiProtocol) -> String {
-    let trimmed = raw_url.trim();
-    if !trimmed.ends_with("/v1") {
-        return trimmed.to_string();
-    }
-    match protocol {
-        ExplanationApiProtocol::OpenAiCompatible => trimmed.to_string() + "/chat/completions",
-        ExplanationApiProtocol::AnthropicCompatible => trimmed.to_string() + "/messages",
-        ExplanationApiProtocol::Unknown => trimmed.to_string(),
-    }
 }
 
 /// Error kind for AI explanation network failures, used by the frontend
@@ -1080,25 +1191,37 @@ fn format_reqwest_error(e: &reqwest::Error) -> String {
 
 #[tauri::command]
 pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Result<String, String> {
-    let api_key = get_provider_setting(&state.db, "ai_api_key")
+    // Read dynamic provider settings
+    async fn get_setting(pool: &crate::db::DbPool, key: &str) -> Option<String> {
+        sqlx::query_scalar::<_, String>("SELECT value FROM settings WHERE key = ?")
+            .bind(key)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten()
+            .filter(|v| !v.trim().is_empty())
+    }
+
+    let api_key = get_setting(&state.db, "ai_api_key")
         .await
         .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
 
-    let api_url = get_provider_setting(&state.db, "ai_api_url")
+    let api_url = get_setting(&state.db, "ai_api_url")
         .await
         .unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
 
-    let model = get_provider_setting(&state.db, "ai_model")
+    let model = get_setting(&state.db, "ai_model")
         .await
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(60))
         .build()
         .map_err(|e| e.to_string())?;
 
+    // Truncate content if too long
     let truncated = if content.len() > 8000 {
         format!("{}...\n\n(内容已截断)", &content[..8000])
     } else {
@@ -1119,12 +1242,9 @@ pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Resul
         }],
     };
 
-    let explicit_protocol_opt = get_provider_setting(&state.db, "ai_protocol").await;
-    let explicit_protocol = explicit_protocol_opt.as_deref();
-    let protocol = resolve_api_protocol(&api_url, explicit_protocol);
-    let resolved_url = resolve_custom_url(&api_url, &protocol);
+    let protocol = detect_explanation_api_protocol(&api_url);
     let mut req_builder = client
-        .post(&resolved_url)
+        .post(&api_url)
         .header("content-type", "application/json");
 
     match protocol {
@@ -1184,86 +1304,6 @@ pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Resul
     }
 
     Err(format!("无法解析响应: {}", &body[..body.len().min(500)]))
-}
-
-// ─── Test AI Connection ─────────────────────────────────────────────────────
-
-#[tauri::command]
-pub async fn test_ai_connection(state: State<'_, AppState>) -> Result<String, String> {
-    let api_key = get_provider_setting(&state.db, "ai_api_key")
-        .await
-        .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
-
-    let api_url = get_provider_setting(&state.db, "ai_api_url")
-        .await
-        .unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
-
-    let model = get_provider_setting(&state.db, "ai_model")
-        .await
-        .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
-
-    let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let request = serde_json::json!({
-        "model": model,
-        "max_tokens": 1,
-        "messages": [{
-            "role": "user",
-            "content": "OK"
-        }]
-    });
-
-    let explicit_protocol_opt = get_provider_setting(&state.db, "ai_protocol").await;
-    let explicit_protocol = explicit_protocol_opt.as_deref();
-    let protocol = resolve_api_protocol(&api_url, explicit_protocol);
-    let resolved_url = resolve_custom_url(&api_url, &protocol);
-    let mut req_builder = client
-        .post(&resolved_url)
-        .header("content-type", "application/json");
-
-    match protocol {
-        ExplanationApiProtocol::AnthropicCompatible | ExplanationApiProtocol::Unknown => {
-            req_builder = req_builder
-                .header("x-api-key", &api_key)
-                .header("anthropic-version", "2023-06-01");
-        }
-        ExplanationApiProtocol::OpenAiCompatible => {
-            req_builder = req_builder.header("authorization", format!("Bearer {}", api_key));
-        }
-    }
-
-    let resp = req_builder
-        .json(&request)
-        .send()
-        .await
-        .map_err(|e| format!("API 请求失败: {}", format_reqwest_error(&e)))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!("API 返回错误 {}: {}", status, body));
-    }
-
-    // Parse and check response body — just enough to confirm it's a valid API response
-    let body = resp
-        .text()
-        .await
-        .map_err(|e| format!("读取响应失败: {}", e))?;
-
-    // Accept either Anthropic or OpenAI response shape
-    let val: serde_json::Value = serde_json::from_str(&body)
-        .map_err(|_| format!("无法解析响应: {}", &body[..body.len().min(200)]))?;
-
-    if val.get("content").is_some() || val.get("choices").is_some() {
-        Ok("Connection OK".to_string())
-    } else {
-        Err(format!("无法识别的响应格式: {}", &body[..body.len().min(200)]))
-    }
 }
 
 // ─── Streaming AI Explanation ────────────────────────────────────────────────
@@ -1393,12 +1433,6 @@ async fn get_ai_setting(pool: &crate::db::DbPool, key: &str) -> Option<String> {
         .filter(|v| !v.trim().is_empty())
 }
 
-async fn get_provider_setting(pool: &crate::db::DbPool, key: &str) -> Option<String> {
-    let provider = get_ai_setting(pool, "ai_provider").await.unwrap_or_default();
-    let suffixed = format!("{}__{}", key, provider);
-    get_ai_setting(pool, &suffixed).await
-}
-
 /// Helper: truncate skill content to 8000 chars.
 fn truncate_content(content: &str) -> String {
     if content.len() > 8000 {
@@ -1508,15 +1542,15 @@ async fn do_explain_skill_stream(
     content: &str,
     lang: &str,
 ) -> Result<(), String> {
-    let api_key = get_provider_setting(pool, "ai_api_key")
+    let api_key = get_ai_setting(pool, "ai_api_key")
         .await
         .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
 
-    let api_url = get_provider_setting(pool, "ai_api_url")
+    let api_url = get_ai_setting(pool, "ai_api_url")
         .await
         .unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
 
-    let model = get_provider_setting(pool, "ai_model")
+    let model = get_ai_setting(pool, "ai_model")
         .await
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
@@ -1524,10 +1558,7 @@ async fn do_explain_skill_stream(
         .await
         .unwrap_or_default();
 
-    let explicit_protocol_opt = get_provider_setting(pool, "ai_protocol").await;
-    let explicit_protocol = explicit_protocol_opt.as_deref();
-    let protocol = resolve_api_protocol(&api_url, explicit_protocol);
-    let resolved_url = resolve_custom_url(&api_url, &protocol);
+    let protocol = detect_explanation_api_protocol(&api_url);
     let is_anthropic = matches!(
         protocol,
         ExplanationApiProtocol::AnthropicCompatible | ExplanationApiProtocol::Unknown
@@ -1539,7 +1570,7 @@ async fn do_explain_skill_stream(
 
     // Streaming: only connect_timeout (total `.timeout()` would kill long streams).
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skills-manage/0.9.1")
         .connect_timeout(Duration::from_secs(10))
         .pool_idle_timeout(Duration::from_secs(90))
         .build()
@@ -1547,12 +1578,12 @@ async fn do_explain_skill_stream(
 
     // Try primary endpoint; on connect-layer failure, try fallback once
     let resp =
-        match send_stream_request(&client, &resolved_url, &api_key, &body, is_anthropic, false).await {
+        match send_stream_request(&client, &api_url, &api_key, &body, is_anthropic, false).await {
             Ok(r) => r,
             Err(err_info) => {
                 // Only retry on connect-layer errors that are retryable
                 if err_info.retryable {
-                    if let Some(fallback_url) = get_fallback_endpoint(&provider, &resolved_url) {
+                    if let Some(fallback_url) = get_fallback_endpoint(&provider, &api_url) {
                         eprintln!(
                             "[explain] primary endpoint failed ({:?}), trying fallback: {}",
                             err_info.kind, fallback_url
@@ -1812,15 +1843,124 @@ pub async fn refresh_skill_explanation(
     do_explain_skill_stream(&state.db, &app, &skill_id, &content, &lang).await
 }
 
+// ─── Test AI Connection ─────────────────────────────────────────────────────
+
+fn resolve_api_protocol(api_url: &str, explicit_protocol: Option<&str>) -> ExplanationApiProtocol {
+    match explicit_protocol {
+        Some("openai") => ExplanationApiProtocol::OpenAiCompatible,
+        Some("anthropic") => ExplanationApiProtocol::AnthropicCompatible,
+        _ => detect_explanation_api_protocol(api_url),
+    }
+}
+
+fn resolve_custom_url(raw_url: &str, protocol: &ExplanationApiProtocol) -> String {
+    let trimmed = raw_url.trim();
+    if !trimmed.ends_with("/v1") {
+        return trimmed.to_string();
+    }
+    match protocol {
+        ExplanationApiProtocol::OpenAiCompatible => trimmed.to_string() + "/chat/completions",
+        ExplanationApiProtocol::AnthropicCompatible => trimmed.to_string() + "/messages",
+        ExplanationApiProtocol::Unknown => trimmed.to_string(),
+    }
+}
+
+async fn get_provider_setting(pool: &crate::db::DbPool, key: &str) -> Option<String> {
+    let provider = get_ai_setting(pool, "ai_provider")
+        .await
+        .unwrap_or_default();
+    let suffixed = format!("{}__{}", key, provider);
+    get_ai_setting(pool, &suffixed).await
+}
+
+#[tauri::command]
+pub async fn test_ai_connection(state: State<'_, AppState>) -> Result<String, String> {
+    let api_key = get_provider_setting(&state.db, "ai_api_key")
+        .await
+        .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
+
+    let api_url = get_provider_setting(&state.db, "ai_api_url")
+        .await
+        .unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
+
+    let model = get_provider_setting(&state.db, "ai_model")
+        .await
+        .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
+
+    let client = reqwest::Client::builder()
+        .user_agent("skill-link/0.9.1")
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let request = serde_json::json!({
+        "model": model,
+        "max_tokens": 1,
+        "messages": [{
+            "role": "user",
+            "content": "OK"
+        }]
+    });
+
+    let explicit_protocol_opt = get_provider_setting(&state.db, "ai_protocol").await;
+    let explicit_protocol = explicit_protocol_opt.as_deref();
+    let protocol = resolve_api_protocol(&api_url, explicit_protocol);
+    let resolved_url = resolve_custom_url(&api_url, &protocol);
+    let mut req_builder = client
+        .post(&resolved_url)
+        .header("content-type", "application/json");
+
+    match protocol {
+        ExplanationApiProtocol::AnthropicCompatible | ExplanationApiProtocol::Unknown => {
+            req_builder = req_builder
+                .header("x-api-key", &api_key)
+                .header("anthropic-version", "2023-06-01");
+        }
+        ExplanationApiProtocol::OpenAiCompatible => {
+            req_builder = req_builder.header("authorization", format!("Bearer {}", api_key));
+        }
+    }
+
+    let resp = req_builder
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| format!("API 请求失败: {}", format_reqwest_error(&e)))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("API 返回错误 {}: {}", status, body));
+    }
+
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("读取响应失败: {}", e))?;
+
+    let val: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|_| format!("无法解析响应: {}", &body[..body.len().min(200)]))?;
+
+    if val.get("content").is_some() || val.get("choices").is_some() {
+        Ok("Connection OK".to_string())
+    } else {
+        Err(format!(
+            "无法识别的响应格式: {}",
+            &body[..body.len().min(200)]
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         add_registry_impl, cache_skill_explanation, classify_reqwest_error,
-        detect_explanation_api_protocol, format_reqwest_error, get_fallback_endpoint,
-        load_cached_skill_explanation, marketplace_skills_from_candidates,
-        registry_has_cached_skills, resolve_api_protocol, resolve_custom_url, search_marketplace_skills_impl, sync_registry_impl,
-        ExplanationApiProtocol, ExplanationErrorKind, RegistryCacheMetadata, RegistrySyncStatus,
-        SyncRegistryOptions,
+        detect_explanation_api_protocol, extract_dir_path, format_reqwest_error,
+        get_fallback_endpoint, load_cached_skill_explanation, marketplace_skills_from_candidates,
+        registry_has_cached_skills, search_marketplace_skills_impl, sync_registry_impl,
+        tree_entries_under_dir, ExplanationApiProtocol, ExplanationErrorKind,
+        RegistryCacheMetadata, RegistrySyncStatus, SyncRegistryOptions,
     };
     use crate::commands::github_import::RemoteSkillCandidate;
     use crate::db;
@@ -2343,69 +2483,153 @@ mod tests {
             .expect("cached"));
     }
 
-    // ── resolve_api_protocol tests ─────────────────────────────────────────
+    // ── skills.sh tree browsing tests ──────────────────────────────────
 
     #[test]
-    fn resolve_api_protocol_explicit_overrides_detection() {
+    fn extract_dir_path_parses_root_skill() {
+        let url = "https://raw.githubusercontent.com/owner/repo/branch/skill-name/SKILL.md";
+        assert_eq!(extract_dir_path(url), Some("skill-name".to_string()));
+    }
+
+    #[test]
+    fn extract_dir_path_parses_nested_skill() {
+        let url = "https://raw.githubusercontent.com/owner/repo/branch/skills/my-skill/SKILL.md";
+        assert_eq!(extract_dir_path(url), Some("skills/my-skill".to_string()));
+    }
+
+    #[test]
+    fn extract_dir_path_parses_deeply_nested_skill() {
+        let url =
+            "https://raw.githubusercontent.com/owner/repo/branch/skills/.curated/deep-skill/SKILL.md";
         assert_eq!(
-            resolve_api_protocol("https://example.com/v1/messages", Some("openai")),
-            ExplanationApiProtocol::OpenAiCompatible
+            extract_dir_path(url),
+            Some("skills/.curated/deep-skill".to_string())
         );
     }
 
     #[test]
-    fn resolve_api_protocol_falls_back_to_detection_when_none() {
+    fn extract_dir_path_returns_none_for_non_skill_md_url() {
+        let url = "https://raw.githubusercontent.com/owner/repo/branch/some-other-file.txt";
+        assert_eq!(extract_dir_path(url), None);
+    }
+
+    #[test]
+    fn extract_dir_path_parses_orphan_skill_md() {
+        // SKILL.md at repo root — no directory prefix
+        let url = "https://raw.githubusercontent.com/owner/repo/branch/SKILL.md";
+        assert_eq!(extract_dir_path(url), Some(String::new()));
+    }
+
+    fn make_tree_value(entries: &[(&str, &str)]) -> serde_json::Value {
+        let tree: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|(path, typ)| serde_json::json!({ "path": path, "type": typ }))
+            .collect();
+        serde_json::json!({ "tree": tree })
+    }
+
+    #[test]
+    fn tree_entries_under_dir_returns_nested_entries_for_root_skill() {
+        let data = make_tree_value(&[
+            ("skill-name", "tree"),
+            ("skill-name/SKILL.md", "blob"),
+            ("skill-name/config.json", "blob"),
+            ("skill-name/scripts", "tree"),
+            ("skill-name/scripts/deploy.sh", "blob"),
+        ]);
+        let entries = tree_entries_under_dir(&data, "skill-name");
+
+        // Should include everything under skill-name/ except the directory itself
+        let paths: Vec<&str> = entries.iter().map(|e| e.path.as_str()).collect();
         assert_eq!(
-            resolve_api_protocol("https://example.com/v1/messages", None),
-            ExplanationApiProtocol::AnthropicCompatible
+            paths,
+            vec![
+                "skill-name/SKILL.md",
+                "skill-name/config.json",
+                "skill-name/scripts",
+                "skill-name/scripts/deploy.sh",
+            ]
         );
+        // Verify is_dir
+        assert!(!entries[0].is_dir); // SKILL.md
+        assert!(!entries[1].is_dir); // config.json
+        assert!(entries[2].is_dir); // scripts
+        assert!(!entries[3].is_dir); // deploy.sh
+                                     // Verify names
+        assert_eq!(entries[0].name, "SKILL.md");
+        assert_eq!(entries[1].name, "config.json");
+        assert_eq!(entries[2].name, "scripts");
+        assert_eq!(entries[3].name, "deploy.sh");
+    }
+
+    #[test]
+    fn tree_entries_under_dir_filters_to_nested_skill() {
+        let data = make_tree_value(&[
+            ("skills", "tree"),
+            ("skills/openai-docs", "tree"),
+            ("skills/openai-docs/SKILL.md", "blob"),
+            ("skills/openai-docs/nested", "tree"),
+            ("skills/openai-docs/nested/deep.py", "blob"),
+            ("skills/other-skill", "tree"),
+            ("skills/other-skill/SKILL.md", "blob"),
+        ]);
+        let entries = tree_entries_under_dir(&data, "skills/openai-docs");
+
+        let paths: Vec<&str> = entries.iter().map(|e| e.path.as_str()).collect();
         assert_eq!(
-            resolve_api_protocol("https://example.com/v1/chat/completions", None),
-            ExplanationApiProtocol::OpenAiCompatible
+            paths,
+            vec![
+                "skills/openai-docs/SKILL.md",
+                "skills/openai-docs/nested",
+                "skills/openai-docs/nested/deep.py",
+            ]
+        );
+        assert!(entries[1].is_dir);
+        assert_eq!(entries[1].name, "nested");
+    }
+
+    #[test]
+    fn tree_entries_under_dir_handles_empty_dir_path() {
+        let data = make_tree_value(&[
+            ("SKILL.md", "blob"),
+            ("README.md", "blob"),
+            ("subdir", "tree"),
+            ("subdir/file.txt", "blob"),
+        ]);
+        let entries = tree_entries_under_dir(&data, "");
+        // Should include everything since prefix is empty, except the empty-string dir itself
+        let paths: Vec<&str> = entries.iter().map(|e| e.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            vec!["SKILL.md", "README.md", "subdir", "subdir/file.txt"]
         );
     }
 
     #[test]
-    fn resolve_api_protocol_empty_string_same_as_none() {
-        assert_eq!(
-            resolve_api_protocol("https://example.com/v1/messages", Some("")),
-            ExplanationApiProtocol::AnthropicCompatible
-        );
+    fn tree_entries_under_dir_skips_entries_not_under_dir() {
+        let data = make_tree_value(&[
+            ("unrelated", "tree"),
+            ("unrelated/file.txt", "blob"),
+            ("my-skill", "tree"),
+            ("my-skill/SKILL.md", "blob"),
+        ]);
+        let entries = tree_entries_under_dir(&data, "my-skill");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "SKILL.md");
+        assert_eq!(entries[0].path, "my-skill/SKILL.md");
     }
 
     #[test]
-    fn resolve_api_protocol_anthropic_explicit() {
-        assert_eq!(
-            resolve_api_protocol("https://example.com/v1/chat/completions", Some("anthropic")),
-            ExplanationApiProtocol::AnthropicCompatible
-        );
-    }
-
-    #[test]
-    fn resolve_custom_url_appends_path_for_v1_suffix() {
-        assert_eq!(
-            resolve_custom_url("https://api.example.com/v1", &ExplanationApiProtocol::OpenAiCompatible),
-            "https://api.example.com/v1/chat/completions"
-        );
-        assert_eq!(
-            resolve_custom_url("https://api.example.com/v1", &ExplanationApiProtocol::AnthropicCompatible),
-            "https://api.example.com/v1/messages"
-        );
-        assert_eq!(
-            resolve_custom_url("https://api.example.com/v1", &ExplanationApiProtocol::Unknown),
-            "https://api.example.com/v1"
-        );
-    }
-
-    #[test]
-    fn resolve_custom_url_leaves_non_v1_unchanged() {
-        assert_eq!(
-            resolve_custom_url("https://api.example.com/v1/chat/completions", &ExplanationApiProtocol::OpenAiCompatible),
-            "https://api.example.com/v1/chat/completions"
-        );
-        assert_eq!(
-            resolve_custom_url("https://api.anthropic.com/v1/messages", &ExplanationApiProtocol::AnthropicCompatible),
-            "https://api.anthropic.com/v1/messages"
-        );
+    fn tree_entries_under_dir_skips_only_the_exact_dir_not_sibling_with_same_prefix() {
+        // Ensure we don't accidentally match prefixes with partial name matches
+        let data = make_tree_value(&[
+            ("my-skill", "tree"),
+            ("my-skill/SKILL.md", "blob"),
+            ("my-skill-extra", "tree"),
+            ("my-skill-extra/extra.md", "blob"),
+        ]);
+        let entries = tree_entries_under_dir(&data, "my-skill");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "SKILL.md");
     }
 }

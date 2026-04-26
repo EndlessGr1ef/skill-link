@@ -172,6 +172,11 @@ export function MarketplaceView() {
     try {
       await installFromSkillsSh(source, skillId);
       await rescan();
+      setDetailSkill((current) =>
+        current && current.id === `skillssh:${source}:${skillId}`
+          ? { ...current, installed: true }
+          : current
+      );
       toast.success(t("marketplace.installSuccess"));
     } catch (err) {
       toast.error(String(err));
@@ -812,11 +817,21 @@ export function MarketplaceView() {
           onInstall={() => {
             if (detailSkill.id.startsWith("skill-")) {
               void handleInstallFromSource(detailSkill.id);
-              return;
+            } else if (detailSkill.id.startsWith("skillssh:")) {
+              const parts = detailSkill.id.split(":");
+              void handleInstallSkillsSh(parts[1], parts.slice(2).join(":"));
+            } else {
+              handleInstallPreviewSkill({ id: detailSkill.id, name: detailSkill.name, downloadUrl: detailSkill.downloadUrl });
             }
-            handleInstallPreviewSkill({ id: detailSkill.id, name: detailSkill.name, downloadUrl: detailSkill.downloadUrl });
           }}
-          isInstalling={installingIds.has(detailSkill.id) || previewInstallingIds.has(detailSkill.name)}
+          isInstalling={(() => {
+            if (detailSkill.id.startsWith("skillssh:")) {
+              const parts = detailSkill.id.split(":");
+              const rawId = parts.slice(2).join(":");
+              return installingIds.has(rawId) || previewInstallingIds.has(detailSkill.name);
+            }
+            return installingIds.has(detailSkill.id) || previewInstallingIds.has(detailSkill.name);
+          })()}
           onAfterCloseFocus={() => {
             detailTriggerRef.current?.focus();
             detailTriggerRef.current = null;

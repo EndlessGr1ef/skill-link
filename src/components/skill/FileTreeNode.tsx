@@ -52,10 +52,24 @@ export function FileTreeNode({
   }
 
   const isSelected = node.path === selectedPath;
+  if (!onSelectFile) {
+    return (
+      <div
+        className={cn(
+          "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs text-foreground/80",
+        )}
+        style={{ paddingLeft }}
+        title={node.relative_path}
+      >
+        <FileText className="size-3.5 shrink-0" />
+        <span className="truncate">{node.name}</span>
+      </div>
+    );
+  }
   return (
     <button
       type="button"
-      onClick={() => onSelectFile?.({ path: node.path, relativePath: node.relative_path })}
+      onClick={() => onSelectFile({ path: node.path, relativePath: node.relative_path })}
       className={cn(
         "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-xs transition-colors cursor-pointer",
         isSelected
