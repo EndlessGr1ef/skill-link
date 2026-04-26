@@ -2,64 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.9.1 - 2026-04-23
+## 0.1.0 - 2026-04-27
 
-Maintenance release focused on full-path display consistency and small README polish.
+Initial release of Skill Link. Rebranded from skills-manage with a refreshed visual identity and theme system.
 
-### Fixes
+### Features
 
-- Show full absolute paths in Central, Platform, Settings, Global Search, and platform-edit flows instead of collapsing paths to `~`.
-- Render Windows paths with drive letters and backslashes in display-oriented UI surfaces.
-- Keep auto-generated custom platform paths aligned with the detected home-directory style on each platform.
+- **Obsidian Light Theme**: Add a new light theme with a warm white base (`#ffffff`), subtle gray cards (`#f6f8fa`), and a purple accent (`#8250df`) inspired by the Obsidian app aesthetic.
+- **Configurable Font Family**: Add a font picker in Settings → About with three options:
+  - **Geist** — modern variable sans-serif
+  - **JetBrains Mono** — monospace UI font
+  - **System Font** — native OS font (default)
+- **Theme & Font Persistence**: Theme and font choices are saved to `localStorage` and applied before first paint to prevent flash.
 
 ### Improvements
 
-- Add a `Star History` section to the English and Chinese READMEs.
-- Extend path helper tests and affected UI assertions to cover the new display rules.
-
-## 0.9.0 - 2026-04-23
-
-Cross-platform release centered on Windows support, universal macOS packaging, and reliability fixes.
-
-### Highlights
-
-- Add Windows x64 desktop support with `.msi` installer and portable `.zip` package outputs.
-- Upgrade macOS packaging to universal builds with `.dmg`, `.zip`, and `.tar.gz` release artifacts.
-
-### Features
-
-- Add Windows-aware home and path handling across backend commands, scan-directory settings, and frontend path displays.
-- Add automatic install fallback from symlink to copy on Windows when symlink creation is blocked.
-- Add GitHub Actions packaging and release automation for Windows x64 and macOS universal desktop builds.
+- Default dark-mode theme changed from Catppuccin Mocha to **Obsidian Light**.
+- Default font changed from JetBrains Mono to **System Font**.
+- Settings UI label "Flavor" renamed to **"Theme"**.
+- `--hover-bg` color variable moved from global `:root` into per-theme blocks for correct color mapping.
 
 ### Fixes
 
-- Preserve Claude source-specific platform rows, detail actions, and explanation content across reloads and rescans.
-- Refresh central, platform, and discover surfaces more reliably after global rescans.
-- Improve path labels, sidebar/detail continuity, and a set of small accessibility and interaction refinements across settings and skill views.
+- Fix font inheritance across the entire app (including sidebar) by setting `font-family` directly on the `<html>` element, since Tailwind v4 utilities inline the font stack at build time.
 
-## 0.8.0 - 2026-04-20
+### Assets
 
-First public release.
-
-### Features
-
-- Launch `skills-manage` as a Tauri desktop app for managing AI agent skills across built-in and custom platforms from one place.
-- Add platform and central skill views with install, uninstall, symlink-aware status, and canonical skill management.
-- Add a full skill detail experience with markdown preview, in-place drawer navigation, install actions, and collection-aware workflows.
-- Add collections management, custom platform settings, configurable scan roots, onboarding, toast feedback, and a responsive sidebar.
-- Add Chinese and English UI support, a Catppuccin multi-flavor theme system, accent color controls, and a global command palette.
-- Add project-level Discover scanning with recursive search, cached results, stop-scan controls, import to central, and improved navigation context.
-- Add marketplace browsing, preview drawers, auto-centralized installs, and AI-generated skill explanations.
-- Add GitHub repository import with preview, mirror fallback retries, optional authenticated requests, selection persistence, and post-import platform install flows.
-
-### Performance
-
-- Improve global search, central search, and project skill browsing with deferred queries, lazy indexing, lighter search result cards, and list virtualization for large datasets.
-
-### Fixes
-
-- Harden AI explanation generation by rejecting blank cached content and re-generating corrupted empty explanations.
-- Improve frontmatter handling by extracting structured metadata such as `name`, `description`, and `version` instead of leaking raw YAML into markdown previews.
-- Show existing collection membership in skill details and preselect already-added collections in add-to-collection flows.
-- Refine detail drawer, marketplace preview, and GitHub import layouts to preserve context and reduce navigation friction.
+- Regenerate all platform app icons (macOS `.icns`, Windows `.ico`, Linux PNG, Android mipmaps, iOS AppIcon sets) from an updated 1024×1024 source.
