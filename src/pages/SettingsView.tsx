@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, Loader2, FolderOpen, Cpu, Info, Database, Globe, Palette, Droplets, Bot, ChevronDown, ChevronRight, KeyRound, Eye, EyeOff, Check } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, FolderOpen, Cpu, Info, Database, Globe, Palette, Droplets, Bot, ChevronDown, ChevronRight, KeyRound, Eye, EyeOff, Check, Type } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -16,7 +16,7 @@ import {
 import { InlineConfirmAction } from "@/components/ui/inline-confirm-action";
 import { Switch } from "@/components/ui/switch";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useThemeStore, CatppuccinFlavor, CatppuccinAccent, ACCENT_NAMES } from "@/stores/themeStore";
+import { useThemeStore, CatppuccinFlavor, CatppuccinAccent, ACCENT_NAMES, FontFamily } from "@/stores/themeStore";
 import { usePlatformStore } from "@/stores/platformStore";
 import { AddDirectoryDialog } from "@/components/settings/AddDirectoryDialog";
 import { PlatformDialog } from "@/components/settings/PlatformDialog";
@@ -36,6 +36,7 @@ const FLAVOR_COLORS: Record<CatppuccinFlavor, string> = {
   macchiato: "#b7bdf8",
   frappe: "#babbf1",
   latte: "#7287fd",
+  obsidian: "#8250df",
 };
 
 /**
@@ -60,7 +61,7 @@ const CTP_VAR_MAP: Record<CatppuccinAccent, string> = {
   lavender: "--ctp-lavender",
 };
 
-const FLAVOR_ORDER: CatppuccinFlavor[] = ["mocha", "macchiato", "frappe", "latte"];
+const FLAVOR_ORDER: CatppuccinFlavor[] = ["mocha", "macchiato", "frappe", "latte", "obsidian"];
 
 /** Expand a raw custom base URL to its full endpoint based on protocol. */
 function resolveCustomUrl(rawUrl: string, protocol: ApiProtocol | ""): string {
@@ -202,6 +203,8 @@ export function SettingsView() {
   const setFlavor = useThemeStore((s) => s.setFlavor);
   const accent = useThemeStore((s) => s.accent);
   const setAccent = useThemeStore((s) => s.setAccent);
+  const fontFamily = useThemeStore((s) => s.fontFamily);
+  const setFontFamily = useThemeStore((s) => s.setFontFamily);
   const rescan = usePlatformStore((s) => s.rescan);
   const refreshCounts = usePlatformStore((s) => s.refreshCounts);
 
@@ -878,6 +881,26 @@ export function SettingsView() {
                           className="inline-block size-2 rounded-full mr-1.5 shrink-0"
                           style={{ backgroundColor: FLAVOR_COLORS[f] }}
                         />
+                        {t(`settings.${f}`)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* ── Font Family Picker ────────────────────────────────────── */}
+              <div className="flex items-center gap-3">
+                <Type className="size-4 text-muted-foreground shrink-0" />
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground mb-1.5">{t("settings.fontFamily")}</div>
+                  <div className="flex gap-2">
+                    {(["geist", "jetbrains", "system"] as FontFamily[]).map((f) => (
+                      <Button
+                        key={f}
+                        variant={fontFamily === f ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setFontFamily(f)}
+                        aria-pressed={fontFamily === f}
+                      >
                         {t(`settings.${f}`)}
                       </Button>
                     ))}

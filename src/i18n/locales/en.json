@@ -283,7 +283,12 @@
     "macchiato": "Macchiato",
     "frappe": "Frappé",
     "latte": "Latte",
+    "obsidian": "Obsidian Light",
     "accentColor": "Accent Color",
+    "fontFamily": "Font",
+    "geist": "Geist",
+    "jetbrains": "JetBrains Mono",
+    "system": "System Font",
     "accent": {
       "rosewater": "Rosewater",
       "flamingo": "Flamingo",

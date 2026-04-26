@@ -64,8 +64,8 @@ describe("themeStore", () => {
     expect(localStorage.getItem("catppuccin-flavor")).toBe("macchiato");
   });
 
-  it("setFlavor works for all four flavors", () => {
-    const flavors: CatppuccinFlavor[] = ["mocha", "macchiato", "frappe", "latte"];
+  it("setFlavor works for all five flavors", () => {
+    const flavors: CatppuccinFlavor[] = ["mocha", "macchiato", "frappe", "latte", "obsidian"];
     for (const flavor of flavors) {
       useThemeStore.getState().setFlavor(flavor);
       expect(useThemeStore.getState().flavor).toBe(flavor);
@@ -157,7 +157,7 @@ describe("themeStore", () => {
     useThemeStore.getState().init();
     const stored = localStorage.getItem("catppuccin-flavor");
     expect(stored).toBeTruthy();
-    expect(["mocha", "macchiato", "frappe", "latte"]).toContain(stored);
+    expect(["mocha", "macchiato", "frappe", "latte", "obsidian"]).toContain(stored);
 
     spy.mockRestore();
   });

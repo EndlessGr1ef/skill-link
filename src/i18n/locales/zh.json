@@ -283,7 +283,12 @@
     "macchiato": "Macchiato",
     "frappe": "Frappé",
     "latte": "Latte",
+    "obsidian": "Obsidian 亮色",
     "accentColor": "强调色",
+    "fontFamily": "字体配置",
+    "geist": "Geist",
+    "jetbrains": "JetBrains Mono",
+    "system": "系统字体",
     "accent": {
       "rosewater": "玫瑰水",
       "flamingo": "火烈鸟",

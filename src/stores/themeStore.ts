@@ -2,7 +2,9 @@ import { create } from "zustand";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CatppuccinFlavor = "mocha" | "macchiato" | "frappe" | "latte";
+export type CatppuccinFlavor = "mocha" | "macchiato" | "frappe" | "latte" | "obsidian";
+
+export type FontFamily = "geist" | "jetbrains" | "system";
 
 /** The 14 Catppuccin accent color names (same order as the Obsidian theme). */
 export type CatppuccinAccent =
@@ -41,6 +43,7 @@ export const ACCENT_NAMES: CatppuccinAccent[] = [
 
 const FLAVOR_STORAGE_KEY = "catppuccin-flavor";
 const ACCENT_STORAGE_KEY = "catppuccin-accent";
+const FONT_STORAGE_KEY = "app-font-family";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,7 +63,8 @@ function readStoredFlavor(): CatppuccinFlavor | null {
       stored === "mocha" ||
       stored === "macchiato" ||
       stored === "frappe" ||
-      stored === "latte"
+      stored === "latte" ||
+      stored === "obsidian"
     ) {
       return stored;
     }
@@ -107,15 +111,42 @@ function applyAccent(accent: CatppuccinAccent): void {
   }
 }
 
+/** Read persisted font family from localStorage (returns null if not set or invalid). */
+function readStoredFont(): FontFamily | null {
+  try {
+    const stored = localStorage.getItem(FONT_STORAGE_KEY);
+    if (stored === "geist" || stored === "jetbrains" || stored === "system") {
+      return stored;
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return null;
+}
+
+/** Apply font family to the DOM — sets data-font on <html> and persists to localStorage. */
+function applyFont(font: FontFamily): void {
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.font = font;
+  }
+  try {
+    localStorage.setItem(FONT_STORAGE_KEY, font);
+  } catch {
+    // Silently ignore storage errors
+  }
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 interface ThemeState {
   flavor: CatppuccinFlavor;
   accent: CatppuccinAccent;
+  fontFamily: FontFamily;
 
   // Actions
   setFlavor: (flavor: CatppuccinFlavor) => void;
   setAccent: (accent: CatppuccinAccent) => void;
+  setFontFamily: (font: FontFamily) => void;
   /** Initialize theme — call once before React renders to prevent flash. */
   init: () => void;
 }
@@ -123,8 +154,9 @@ interface ThemeState {
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  flavor: "mocha", // safe default; init() overrides
-  accent: "lavender", // safe default; init() overrides
+  flavor: "mocha",
+  accent: "lavender",
+  fontFamily: "system",
 
   setFlavor: (flavor) => {
     applyFlavor(flavor);
@@ -136,11 +168,18 @@ export const useThemeStore = create<ThemeState>((set) => ({
     set({ accent });
   },
 
+  setFontFamily: (font) => {
+    applyFont(font);
+    set({ fontFamily: font });
+  },
+
   init: () => {
     const flavor = readStoredFlavor() ?? systemFlavor();
     const accent = readStoredAccent() ?? "lavender";
+    const font = readStoredFont() ?? "system";
     applyFlavor(flavor);
     applyAccent(accent);
-    set({ flavor, accent });
+    applyFont(font);
+    set({ flavor, accent, fontFamily: font });
   },
 }));

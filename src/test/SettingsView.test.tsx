@@ -96,6 +96,8 @@ function setupMocks({
   setFlavor = vi.fn(),
   accent = "lavender" as const,
   setAccent = vi.fn(),
+  fontFamily = "system" as const,
+  setFontFamily = vi.fn(),
 } = {}) {
   vi.mocked(useSettingsStore).mockImplementation((selector) =>
     selector({
@@ -138,6 +140,8 @@ function setupMocks({
       setFlavor,
       accent,
       setAccent,
+      fontFamily,
+      setFontFamily,
       init: vi.fn(),
     })
   );
