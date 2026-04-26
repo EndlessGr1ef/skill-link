@@ -5,7 +5,7 @@ import { useThemeStore, CatppuccinFlavor, ACCENT_NAMES } from "../stores/themeSt
 
 /** Reset the store to default state and clear localStorage. */
 function resetStore() {
-  useThemeStore.setState({ flavor: "mocha", accent: "lavender" });
+  useThemeStore.setState({ flavor: "obsidian", accent: "lavender" });
   try {
     localStorage.removeItem("catppuccin-flavor");
   } catch {
@@ -37,9 +37,9 @@ describe("themeStore", () => {
 
   // ── Initial State ─────────────────────────────────────────────────────────
 
-  it("has mocha as the default flavor before init", () => {
+  it("has obsidian as the default flavor before init", () => {
     const state = useThemeStore.getState();
-    expect(state.flavor).toBe("mocha");
+    expect(state.flavor).toBe("obsidian");
   });
 
   it("has lavender as the default accent before init", () => {
@@ -139,12 +139,12 @@ describe("themeStore", () => {
     spy.mockRestore();
   });
 
-  it("init defaults to mocha for dark system preference", () => {
+  it("init defaults to obsidian for dark system preference", () => {
     const spy = vi.spyOn(window, "matchMedia");
     spy.mockReturnValue({ matches: false } as MediaQueryList);
     useThemeStore.getState().init();
-    // dark preference → mocha
-    expect(useThemeStore.getState().flavor).toBe("mocha");
+    // dark preference → obsidian
+    expect(useThemeStore.getState().flavor).toBe("obsidian");
 
     spy.mockRestore();
   });
@@ -206,8 +206,8 @@ describe("themeStore", () => {
     spy.mockReturnValue({ matches: false } as MediaQueryList);
 
     useThemeStore.getState().init();
-    // Falls back to system: dark → mocha
-    expect(useThemeStore.getState().flavor).toBe("mocha");
+    // Falls back to system: dark → obsidian
+    expect(useThemeStore.getState().flavor).toBe("obsidian");
 
     spy.mockRestore();
   });

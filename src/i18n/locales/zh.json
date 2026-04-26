@@ -278,7 +278,7 @@
     "about": "关于",
     "appVersion": "应用版本",
     "dbPath": "数据库路径",
-    "flavor": "主题风格",
+    "theme": "主题",
     "mocha": "Mocha",
     "macchiato": "Macchiato",
     "frappe": "Frappé",

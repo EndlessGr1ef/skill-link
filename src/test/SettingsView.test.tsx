@@ -487,12 +487,11 @@ describe("SettingsView", () => {
     expect(screen.getByText("数据库路径")).toBeTruthy();
   });
 
-  // ── Flavor Switcher ──────────────────────────────────────────────────────
+  // ── Theme Switcher ──────────────────────────────────────────────────────
 
-  it("shows flavor label in about section", () => {
-    setupMocks();
+  it("shows theme label in about section", () => {
     renderSettingsView();
-    expect(screen.getByText("主题风格")).toBeTruthy();
+    expect(screen.getByText("主题")).toBeTruthy();
   });
 
   it("renders all 4 flavor buttons", () => {

@@ -47,12 +47,12 @@ const FONT_STORAGE_KEY = "app-font-family";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Detect system color-scheme preference. Returns "latte" for light, "mocha" for dark. */
+/** Detect system color-scheme preference. Returns "latte" for light, "obsidian" for dark. */
 function systemFlavor(): CatppuccinFlavor {
-  if (typeof window === "undefined") return "mocha";
+  if (typeof window === "undefined") return "obsidian";
   return window.matchMedia("(prefers-color-scheme: light)").matches
     ? "latte"
-    : "mocha";
+    : "obsidian";
 }
 
 /** Read persisted flavor from localStorage (returns null if not set). */
@@ -154,7 +154,7 @@ interface ThemeState {
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  flavor: "mocha",
+  flavor: "obsidian",
   accent: "lavender",
   fontFamily: "system",
 

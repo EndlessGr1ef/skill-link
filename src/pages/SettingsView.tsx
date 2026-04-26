@@ -867,7 +867,7 @@ export function SettingsView() {
               <div className="flex items-center gap-3">
                 <Palette className="size-4 text-muted-foreground shrink-0" />
                 <div className="flex-1">
-                  <div className="text-xs text-muted-foreground mb-1.5">{t("settings.flavor")}</div>
+                  <div className="text-xs text-muted-foreground mb-1.5">{t("settings.theme")}</div>
                   <div className="flex gap-2">
                     {FLAVOR_ORDER.map((f) => (
                       <Button
