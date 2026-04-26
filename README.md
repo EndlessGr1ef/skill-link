@@ -1,26 +1,32 @@
-# skills-manage
+# Skill Link
 
-`skills-manage` is a Tauri desktop app for managing AI coding agent skills across multiple platforms from one place.
+Cross-platform desktop app for linking AI agent skills across your coding tools. Install once, sync everywhere.
 
-[中文文档](README_CN.md)
+[English](README.md) | [中文文档](README_CN.md)
+
+---
+
+> **Acknowledgments**
+>
+> Skill Link is a hard fork of [skills-manage](https://github.com/iamzhihuix/skills-manage) by [iamzhihuix](https://github.com/iamzhihuix), a fantastic cross-platform Skills manager. This project extends the original with additional features, different design choices, and ongoing development in its own direction.
 
 > **Disclaimer**
 >
-> `skills-manage` is an independent, unofficial desktop application for managing local skill directories and importing public skill metadata. It is not affiliated with, endorsed by, or sponsored by Anthropic, OpenAI, GitHub, MiniMax, or any other supported platform, publisher, or trademark owner.
+> Skill Link is an independent, unofficial desktop application for managing local skill directories and importing public skill metadata. It is not affiliated with, endorsed by, or sponsored by Anthropic, OpenAI, GitHub, MiniMax, or any other supported platform, publisher, or trademark owner.
 
 ## Overview
 
-`skills-manage` follows the [Agent Skills](https://github.com/anthropics/agent-skills) open pattern and uses `~/.agents/skills/` as the canonical central directory. Skills can then be installed to individual platforms through symlinks, so one source of truth can drive multiple AI coding tools.
+Skill Link follows the [Agent Skills](https://github.com/anthropics/agent-skills) open pattern and uses `~/.agents/skills/` as the canonical central directory. Skills can then be linked to individual platforms through symlinks, so one source of truth can drive multiple AI coding tools.
 
 ## Highlights
 
 - Central skill library plus per-platform install and uninstall flows.
-- Claude Code can surface native skills and read-only marketplace plugin skills in one platform view.
-- Full skill detail view with Markdown preview, raw source view, and AI explanation generation.
+- Full skill detail view with Markdown preview, raw source view, file tree browsing, and AI explanation generation.
 - Collections for organizing skills and batch-installing them to platforms.
 - Discover scan for project-level skill libraries on local disks.
 - Marketplace browsing and GitHub repository import with authenticated requests and retry fallback.
 - Fast search for large skill libraries with deferred queries, lazy indexing, and virtualization.
+- Custom scan directory support for installing skills from user-defined paths.
 - Bilingual UI, Catppuccin themes, accent colors, onboarding, and responsive navigation.
 
 ## Screenshots
@@ -51,7 +57,7 @@
 
 ## Download
 
-- Latest release: <https://github.com/iamzhihuix/skills-manage/releases/latest>
+- Latest release: <https://github.com/EndlessGr1ef/skill-link/releases/latest>
 - Current prebuilt packages: Apple Silicon macOS (`.dmg` and `.app.zip`)
 - Other platforms: run from source for now
 
@@ -61,15 +67,15 @@ The current public macOS build is not notarized. If macOS shows a warning such a
 
 ![macOS damaged app warning](images/app-damaged.png)
 
-- `"skills-manage" is damaged and can't be opened`
-- `"skills-manage" cannot be opened because Apple could not verify it`
+- `"Skill Link" is damaged and can't be opened`
+- `"Skill Link" cannot be opened because Apple could not verify it`
 
 the app is usually not actually corrupted; it is being blocked by Gatekeeper quarantine on an unsigned build.
 
 After moving the app to `/Applications`, run:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/skills-manage.app"
+xattr -dr com.apple.quarantine "/Applications/Skill Link.app"
 ```
 
 Then launch the app again from Finder. If your app is stored somewhere else, replace the path with the actual `.app` path.
@@ -113,7 +119,7 @@ Custom platforms can be added through Settings.
 
 ## Privacy & Security
 
-- **Local-first storage** — metadata, collections, scan results, settings, and cached AI explanations stay in `~/.skillsmanage/db.sqlite` or the local skill directories you manage.
+- **Local-first storage** — metadata, collections, scan results, settings, and cached AI explanations stay in `~/.skill-link/db.sqlite` or the local skill directories you manage.
 - **No telemetry** — the app does not include analytics, crash reporting, or usage tracking.
 - **Network access is feature-driven** — outbound requests only happen when you explicitly use marketplace sync/download, GitHub import, or AI explanation generation.
 - **Credentials are stored locally** — GitHub PAT and AI API keys are kept in the local SQLite settings table and are not encrypted at rest by the app.
@@ -170,7 +176,7 @@ cd src-tauri && cargo clippy -- -D warnings
 ## Project Structure
 
 ```text
-skills-manage/
+skill-link/
 ├── src/                        # React frontend
 │   ├── components/             # UI components
 │   ├── i18n/                   # Locale files and i18n setup
@@ -193,7 +199,7 @@ skills-manage/
 
 ## Database
 
-The SQLite database lives at `~/.skillsmanage/db.sqlite` and is initialized automatically on first launch.
+The SQLite database lives at `~/.skill-link/db.sqlite` and is initialized automatically on first launch.
 
 ## Changelog
 
@@ -207,10 +213,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, validation command
 ## Security
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting and data-handling notes.
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=iamzhihuix/skills-manage&type=Date)](https://www.star-history.com/#iamzhihuix/skills-manage&Date)
 
 ## License
 

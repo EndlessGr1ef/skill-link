@@ -1404,7 +1404,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "manual isolated-home sanity check"]
     async fn test_scan_all_skills_impl_claude_fixture_home_sanity() {
-        let fixture_home = Path::new("/tmp/skills-manage-test-fixtures/claude-multi-source");
+        let fixture_home = Path::new("/tmp/skill-link-test-fixtures/claude-multi-source");
         if fixture_home.exists() {
             fs::remove_dir_all(fixture_home).unwrap();
         }

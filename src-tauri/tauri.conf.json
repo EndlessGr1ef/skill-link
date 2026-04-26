@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "skills-manage",
+  "productName": "Skill Link",
   "version": "0.9.1",
-  "identifier": "com.iamzhihuix.skillsmanage",
+  "identifier": "com.endlessgr1ef.skilllink",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:24200",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "skills-manage",
+        "title": "Skill Link",
         "width": 1200,
         "height": 800,
         "minWidth": 900,

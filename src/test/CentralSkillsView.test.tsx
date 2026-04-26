@@ -356,7 +356,7 @@ describe("CentralSkillsView", () => {
     );
 
     expect(
-      screen.getByText(/欢迎使用 skills-manage/)
+      screen.getByText(/欢迎使用 Skill Link/)
     ).toBeInTheDocument();
     // Should show guidance about creating a skill
     expect(

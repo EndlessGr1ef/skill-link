@@ -207,14 +207,14 @@ mod tests {
     #[tokio::test]
     async fn test_add_scan_directory_expands_tilde() {
         let pool = setup_test_db().await;
-        let dir = add_scan_directory_impl(&pool, "~/.skillsmanage/custom-scan", None)
+        let dir = add_scan_directory_impl(&pool, "~/.skill-link/custom-scan", None)
             .await
             .unwrap();
         assert!(
             !dir.path.starts_with('~'),
             "tilde paths must be expanded before persistence"
         );
-        assert!(dir.path.contains(".skillsmanage"));
+        assert!(dir.path.contains(".skill-link"));
     }
 
     #[tokio::test]

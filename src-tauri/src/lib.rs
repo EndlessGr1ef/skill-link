@@ -20,7 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let db_dir = path_utils::app_data_dir();
-            fs::create_dir_all(&db_dir).expect("Failed to create ~/.skillsmanage directory");
+            fs::create_dir_all(&db_dir).expect("Failed to create ~/.skill-link directory");
             let db_path = path_utils::path_to_string(&db_dir.join("db.sqlite"));
 
             // Create pool and initialize schema

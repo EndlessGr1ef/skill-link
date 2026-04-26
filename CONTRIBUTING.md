@@ -1,6 +1,6 @@
-# Contributing to skills-manage
+# Contributing to Skill Link
 
-Thanks for your interest in improving `skills-manage`.
+Thanks for your interest in improving `skill-link`.
 
 ## Before you start
 
@@ -23,7 +23,7 @@ Thanks for your interest in improving `skills-manage`.
 
 ```bash
 git clone <your-fork-url>
-cd skills-manage
+cd skill-link
 pnpm install
 pnpm tauri dev
 ```

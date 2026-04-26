@@ -28,7 +28,7 @@ import { deriveHomeDir, formatPathForDisplay, joinPathForDisplay } from "@/lib/p
 // ─── App constants ────────────────────────────────────────────────────────────
 
 const APP_VERSION = "0.9.1";
-const DB_PATH_FALLBACK = "~/.skillsmanage/db.sqlite";
+const DB_PATH_FALLBACK = "~/.skill-link/db.sqlite";
 
 /** Catppuccin Lavender hex per flavor — used for visual preview dots on flavor buttons (default accent). */
 const FLAVOR_COLORS: Record<CatppuccinFlavor, string> = {
@@ -219,7 +219,7 @@ export function SettingsView() {
       .find((candidate): candidate is string => Boolean(candidate));
   }, [agents, scanDirectories]);
   const dbPathDisplay = useMemo(
-    () => (homeDir ? joinPathForDisplay(homeDir, ".skillsmanage/db.sqlite") : DB_PATH_FALLBACK),
+    () => (homeDir ? joinPathForDisplay(homeDir, ".skill-link/db.sqlite") : DB_PATH_FALLBACK),
     [homeDir]
   );
 
@@ -850,7 +850,7 @@ export function SettingsView() {
                 <Info className="size-4 text-muted-foreground shrink-0" />
                 <div>
                   <div className="text-xs text-muted-foreground">{t("settings.appVersion")}</div>
-                  <div className="text-sm font-medium">skills-manage v{APP_VERSION}</div>
+                  <div className="text-sm font-medium">Skill Link v{APP_VERSION}</div>
                 </div>
               </div>
               <div className="flex items-center gap-3">

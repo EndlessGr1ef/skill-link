@@ -39,7 +39,7 @@ pub fn resolve_home_dir() -> PathBuf {
 }
 
 pub fn app_data_dir() -> PathBuf {
-    resolve_home_dir().join(".skillsmanage")
+    resolve_home_dir().join(".skill-link")
 }
 
 pub fn central_skills_dir() -> PathBuf {

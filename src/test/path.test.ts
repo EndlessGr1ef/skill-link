@@ -27,7 +27,7 @@ describe("path helpers", () => {
   });
 
   it("keeps tilde paths stable", () => {
-    expect(compactHomePath("~/.skillsmanage/db.sqlite")).toBe("~/.skillsmanage/db.sqlite");
+    expect(compactHomePath("~/.skill-link/db.sqlite")).toBe("~/.skill-link/db.sqlite");
   });
 
   it("keeps unix paths full for display", () => {
@@ -55,11 +55,11 @@ describe("path helpers", () => {
   });
 
   it("joins relative paths using platform-native display style", () => {
-    expect(joinPathForDisplay("/Users/alice", ".skillsmanage/db.sqlite")).toBe(
-      "/Users/alice/.skillsmanage/db.sqlite"
+    expect(joinPathForDisplay("/Users/alice", ".skill-link/db.sqlite")).toBe(
+      "/Users/alice/.skill-link/db.sqlite"
     );
-    expect(joinPathForDisplay("C:\\Users\\alice", ".skillsmanage/db.sqlite")).toBe(
-      "C:\\Users\\alice\\.skillsmanage\\db.sqlite"
+    expect(joinPathForDisplay("C:\\Users\\alice", ".skill-link/db.sqlite")).toBe(
+      "C:\\Users\\alice\\.skill-link\\db.sqlite"
     );
   });
 

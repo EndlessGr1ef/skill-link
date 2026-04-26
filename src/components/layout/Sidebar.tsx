@@ -78,7 +78,7 @@ function NavItem({
 // ─── Sidebar ────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
-  const SHOW_ALL_PLATFORMS_KEY = "skills-manage:show-all-platforms";
+  const SHOW_ALL_PLATFORMS_KEY = "skill-link:show-all-platforms";
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { t } = useTranslation();
