@@ -53,18 +53,18 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 - **自动中央化（Auto-centralize）**：安装仅存在于某平台的技能到其他平台时，`linker.rs` 的 `ensure_centralized` 会自动将其拷贝到中央目录并更新 DB 的 `canonical_path`/`is_central`，再走正常 symlink/copy 流程。调用方（包括 `install_skill_to_agent_impl` 和 `install_skill_to_agent_copy_impl`）对此透明
 - **集合（Collection）**：技能分组，支持批量安装和 JSON 导入/导出
 - **发现（Discover）**：递归扫描磁盘上的项目级技能文件，主从分离布局（左面板项目列表 + 右面板技能详情）；`is_already_central` 在 DB 加载时根据文件系统重新计算，不是静态快照
-- **文件树（File Tree）**：详细页面和 marketplace 详情抽屉中均可展开以浏览 skill 内部文件结构，点击任意文件显示语法高亮预览
+- **文件树（File Tree）**：详细页面和 Skill Market 详情抽屉中均可展开以浏览 skill 内部文件结构，点击任意文件显示语法高亮预览
 
-### 技能来源（Marketplace Sources）
+### 技能来源（Skill Market Sources）
 
 | 来源 | 数据后端 | UI 位置 |
 |------|---------|---------|
-| Recommended skills | `officialSources.ts`（静态 JSON） | Marketplace → Recommended tab |
-| Official directories | `sync_registry` / `search_marketplace_skills` | Marketplace → Official Directory tab |
-| **skill.sh** | `search_skills_sh` / `browse_skills_sh_directory` / `install_from_skills_sh` | Marketplace → skill.sh tab |
-| GitHub import | `github_import.rs` | Marketplace → GitHub Import button |
+| Recommended skills | `officialSources.ts`（静态 JSON） | Skill Market → Recommended tab |
+| Official directories | `sync_registry` / `search_marketplace_skills` | Skill Market → Official Directory tab |
+| **skill.sh** | `search_skills_sh` / `browse_skills_sh_directory` / `install_from_skills_sh` | Skill Market → skill.sh tab |
+| GitHub import | `github_import.rs` | Skill Market → GitHub Import button |
 
-其中 **skill.sh** 是该 fork 的独特能力：用户在 Marketplace 第三 Tab 直接输入关键词搜索 skill.sh 上的技能，查看远程目录结构，然后一键安装到中央目录。三条路径在 `marketplace.rs` 中统一协调，确保下载/预览/安装行为一致。
+其中 **skill.sh** 是该 fork 的独特能力：用户在 Skill Market 第三 Tab 直接输入关键词搜索 skill.sh 上的技能，查看远程目录结构，然后一键安装到中央目录。三条路径在 `marketplace.rs` 中统一协调，确保下载/预览/安装行为一致。
 
 ### 页面路由
 
@@ -118,7 +118,7 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 ### 技能详情页的文件树界限
 
 - `/skill/:skillId` 页面使用 `SkillDetailView.tsx`，文件树显示本地 central repo 中的技能文件
-- Marketplace 详情抽屉使用 `MarketplaceSkillDetailDrawer.tsx`，文件树显示远程仓库克隆/下载后的缓存目录
+- Skill Market 详情抽屉使用 `MarketplaceSkillDetailDrawer.tsx`，文件树显示远程仓库克隆/下载后的缓存目录
 - 两者的文件树组件共享同一套 `FileTreeNode.tsx` 和 `fileTree.ts`，但数据来源不同（一个来自 `fileTreeFromSkill` IPC，一个来自 `browse_skills_sh_directory` 或本地缓存扫描）
 
 ## 代码约定
@@ -131,6 +131,6 @@ React 前端 (src/)  ──Tauri IPC──▶  Rust 后端 (src-tauri/src/)  ─
 - **测试**：Vitest + jsdom + React Testing Library，setup 在 `src/test/setup.ts`；Tauri `invoke` 在测试中通过 `window.__TAURI_INTERNALS__` mock
 - **未使用变量**：ESLint 规则允许 `_` 前缀的未使用参数和变量
 - **Rust 后端**：所有 IPC 命令函数签名中通过 `State<AppState>` 注入数据库连接池；不使用 `sqlx::query_as!` 宏（需要 DATABASE_URL），统一使用 `sqlx::query()` + 手动 `Row::get()` 映射
-- **Marketplace GitHub 适配器**：扫描仓库根目录和 `skills/` 子目录，解析 SKILL.md frontmatter 获取 name/description；所有同步到的 skills 缓存在 `marketplace_skills` 表，复用 `sync_registry`/`search_marketplace_skills` 命令
+- **Skill Market GitHub 适配器**：扫描仓库根目录和 `skills/` 子目录，解析 SKILL.md frontmatter 获取 name/description；所有同步到的 skills 缓存在 `marketplace_skills` 表，复用 `sync_registry`/`search_marketplace_skills` 命令
 - **AI 解释**：从 settings 表动态读取 provider/api_key/model/api_url，支持 Anthropic 格式和 OpenAI 格式响应，自动跳过 `thinking` 类型 content block
 - **linker.rs 约束**：所有 install/uninstall 路径以中央目录为源。添加新的安装方式时，复用 `ensure_centralized` 保证非中央技能也能被分发

@@ -23,8 +23,8 @@ Skill Link follows the [Agent Skills](https://github.com/anthropics/agent-skills
 Compared to the upstream skills-manage, Skill Link brings:
 
 - **skill.sh integration** — search, browse directory listings, resolve install URLs, and install skills directly from [skill.sh](https://skill.sh) without leaving the app.
-- **Skill file tree** — inspect every file inside a skill with syntax-highlighted preview, available in both the full detail page and the marketplace detail drawer.
-- **Marketplace source unification** — three parallel sources (recommended, official publisher directories, and skill.sh) under one tabbed interface.
+- **Skill file tree** — inspect every file inside a skill with syntax-highlighted preview, available in both the full detail page and the Skill Market detail drawer.
+- **Skill Market source unification** — three parallel sources (recommended, official publisher directories, and skill.sh) under one tabbed interface.
 
 ## Highlights
 
@@ -69,9 +69,9 @@ Compared to the upstream skills-manage, Skill Link brings:
 
 ![skill.sh integration](images/08.png)
 
-### Browse marketplace publishers and skills
+### Browse Skill Market publishers and skills
 
-![Marketplace view](images/04.png)
+![Skill Market view](images/04.png)
 
 ### Import skills from a GitHub repository
 
@@ -143,7 +143,7 @@ Then launch the app again from Finder. If your app is stored somewhere else, rep
 | Lobster | WorkBuddy (打工搭子) | `~/.workbuddy/skills-marketplace/skills/` |
 | Central | Central Skills | `~/.agents/skills/` |
 
-> Note: Claude Code also surfaces marketplace plugin directories under `~/.claude/plugins/marketplaces/*` as read-only rows in the Claude view. Those entries are display-only and are not managed like native skills in `~/.claude/skills/`.
+> Note: Claude Code also surfaces Skill Market plugin directories under `~/.claude/plugins/marketplaces/*` as read-only rows in the Claude view. Those entries are display-only and are not managed like native skills in `~/.claude/skills/`.
 
 Custom platforms can be added through Settings.
 
@@ -151,7 +151,7 @@ Custom platforms can be added through Settings.
 
 - **Local-first storage** — metadata, collections, scan results, settings, and cached AI explanations stay in `~/.skill-link/db.sqlite` or the local skill directories you manage.
 - **No telemetry** — the app does not include analytics, crash reporting, or usage tracking.
-- **Network access is feature-driven** — outbound requests only happen when you explicitly use marketplace sync/download, GitHub import, or AI explanation generation.
+- **Network access is feature-driven** — outbound requests only happen when you explicitly use Skill Market sync/download, GitHub import, or AI explanation generation.
 - **Credentials are stored locally** — GitHub PAT and AI API keys are kept in the local SQLite settings table and are not encrypted at rest by the app.
 - Never post real secrets in issues, pull requests, screenshots, or logs.
 

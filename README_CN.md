@@ -23,8 +23,8 @@ Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的
 相比上游 skills-manage，Skill Link 在以下方面做了增强：
 
 - **skill.sh 集成** — 在应用内直接搜索 skill.sh、浏览远程目录结构、解析安装地址并一键安装，无需离开应用。
-- **技能文件树** — 在 Skill 详情页和市场详情的抽屉中均可展开查看每个 skill 的内部文件结构，点击任意文件显示语法高亮预览。
-- **市场来源统一** — 推荐 / 官方源目录 / skill.sh 三 Tab 并存于同一市场页面。
+- **技能文件树** — 在 Skill 详情页和 Skill Market 详情抽屉中均可展开查看每个 skill 的内部文件结构，点击任意文件显示语法高亮预览。
+- **Skill Market 来源统一** — 推荐 / 官方源目录 / skill.sh 三 Tab 并存于同一 Skill Market 页面。
 
 ## 核心能力
 
@@ -68,7 +68,7 @@ Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的
 
 ![skill.sh 集成](images/08.png)
 
-### 浏览 marketplace 发布者与技能
+### 浏览 Skill Market 发布者与技能
 
 ![技能市场视图](images/04.png)
 
@@ -148,7 +148,7 @@ xattr -dr com.apple.quarantine "/Applications/Skill Link.app"
 
 - **本地优先** — 元数据、集合、扫描结果、设置和 AI explanation 缓存都保存在 `~/.skill-link/db.sqlite` 或你自己管理的本地 skill 目录中。
 - **无遥测** — 应用不包含分析、崩溃上报或使用追踪。
-- **网络访问由功能触发** — 只有在你显式使用 marketplace 同步/下载、skill.sh 搜索/安装、GitHub 导入或 AI explanation 时才会发起外部请求。
+- **网络访问由功能触发** — 只有在你显式使用 Skill Market 同步/下载、skill.sh 搜索/安装、GitHub 导入或 AI explanation 时才会发起外部请求。
 - **凭据仅本地存储** — GitHub PAT 和 AI API key 会保存在本地 SQLite settings 表中，应用本身不提供静态加密。
 - 不要在 issue、PR、截图或日志里公开真实密钥。
 

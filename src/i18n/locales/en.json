@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "skills-manage"
+    "name": "Skill Link"
   },
   "common": {
     "install": "Install",
@@ -369,7 +369,7 @@
     "saving": "Saving..."
   },
   "empty": {
-    "welcomeTitle": "Welcome to skills-manage!",
+    "welcomeTitle": "Welcome to Skill Link!",
     "welcomeDesc": "No skills found in ~/.agents/skills/. Get started by creating a SKILL.md file there, or add custom scan directories in Settings.",
     "createHint": "Create a skill directory at",
     "goToSettings": "Go to Settings"
@@ -392,7 +392,7 @@
   },
   "discover": {
     "title": "Discover Project Skills",
-    "desc": "Scan your project directories for skills not yet managed by skills-manage.",
+    "desc": "Scan your project directories for skills not yet managed by Skill Link.",
     "discoverBtn": "Discover",
     "discoverLabel": "Discover project skills",
     "scanRoots": "Scan Roots",
@@ -442,7 +442,7 @@
     "project": "Project"
   },
   "marketplace": {
-    "title": "Marketplace",
+    "title": "Skill Market",
     "desc": "Browse and install skills from remote sources",
     "sync": "Sync",
     "syncing": "Syncing...",
@@ -458,7 +458,7 @@
     "update": "Update",
     "forceRefresh": "Force Refresh",
     "cacheReused": "Reopening this source reuses backend cache by default.",
-    "cacheUpdated": "Marketplace cache updated",
+    "cacheUpdated": "Skill Market cache updated",
     "cacheStatusUnknown": "Cache status unavailable",
     "cached": "Cached",
     "notSynced": "Not synced yet",
@@ -467,7 +467,7 @@
     "lastAttempted": "Last attempted:",
     "cacheValidUntil": "Cache valid until:",
     "previewSourceLabel": "Source",
-    "previewUnknownSource": "Remote Marketplace Source",
+    "previewUnknownSource": "Remote Skill Source",
     "previewOpenSource": "Open source repo",
     "previewOpenSkillMd": "Open SKILL.md",
     "previewModeBrowser": "Browser preview",
