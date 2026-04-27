@@ -1,6 +1,6 @@
 [package]
 name = "skill-link"
-version = "0.9.1"
+version = "0.1.0"
 description = "Cross-platform AI agent skill linker — install once, sync everywhere"
 authors = ["EndlessGr1ef <endlessgrief@outlook.com>"]
 license = "Apache-2.0"
