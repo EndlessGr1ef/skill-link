@@ -147,7 +147,7 @@ export function Sidebar() {
         )}
       >
         {expanded && (
-          <span className="text-sm font-bold tracking-tight text-sidebar-primary">
+          <span className="text-sm font-bold tracking-tight text-sidebar-primary leading-none">
             {t("app.name")}
           </span>
         )}

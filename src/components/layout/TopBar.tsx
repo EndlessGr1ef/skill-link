@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Blocks, Search, Settings } from "lucide-react";
+import { Search, Settings } from "lucide-react";
 
 import { usePlatformStore } from "@/stores/platformStore";
 import { useDiscoverStore } from "@/stores/discoverStore";
@@ -57,16 +57,12 @@ export function TopBar({ onSearchClick }: TopBarProps) {
     navigator.platform.toUpperCase().includes("MAC");
 
   return (
-    <header className="relative flex items-center h-12 px-4 border-b border-border bg-sidebar text-sidebar-foreground shrink-0">
-      {/* App icon */}
-      <button
-        onClick={() => navigate("/central")}
-        className="z-10 p-1.5 rounded-md transition-colors cursor-pointer text-sidebar-primary hover:bg-muted/60 shrink-0"
-        aria-label={t("app.name")}
-        title={t("app.name")}
-      >
-        <Blocks className="size-4" />
-      </button>
+    <header
+      className="relative flex items-center h-12 border-b border-border bg-sidebar text-sidebar-foreground shrink-0"
+      data-tauri-drag-region
+    >
+      {/* macOS traffic light spacer */}
+      {isMac && <div className="w-[4.5rem] shrink-0" data-tauri-drag-region />}
 
       <div className="flex-1" />
 
@@ -136,6 +132,9 @@ export function TopBar({ onSearchClick }: TopBarProps) {
       >
         <Settings className="size-4" />
       </button>
+
+      {/* Right padding */}
+      <div className="w-3 shrink-0" data-tauri-drag-region />
     </header>
   );
 }
