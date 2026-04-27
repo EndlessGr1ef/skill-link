@@ -1219,7 +1219,7 @@ pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Resul
 
     let request = ClaudeRequest {
         model,
-        max_tokens: 1024,
+        max_tokens: 8192,
         messages: vec![ClaudeMessage {
             role: "user".to_string(),
             content: format!(
@@ -1457,7 +1457,7 @@ fn build_explanation_prompt(truncated: &str, lang: &str) -> String {
 fn build_stream_request_body(model: &str, prompt: &str) -> serde_json::Value {
     serde_json::json!({
         "model": model,
-        "max_tokens": 1024,
+        "max_tokens": 8192,
         "stream": true,
         "messages": [{
             "role": "user",
