@@ -944,18 +944,18 @@ export function SettingsView() {
                   <div className="text-xs text-muted-foreground mb-1.5">{t("settings.language")}</div>
                   <div className="flex gap-2">
                     <Button
-                      variant={i18n.language === "zh" ? "default" : "outline"}
+                      variant={i18n.language.startsWith("zh") ? "default" : "outline"}
                       size="sm"
                       onClick={() => i18n.changeLanguage("zh")}
-                      aria-pressed={i18n.language === "zh"}
+                      aria-pressed={i18n.language.startsWith("zh")}
                     >
                       {t("settings.chinese")}
                     </Button>
                     <Button
-                      variant={i18n.language === "en" ? "default" : "outline"}
+                      variant={i18n.language.startsWith("en") ? "default" : "outline"}
                       size="sm"
                       onClick={() => i18n.changeLanguage("en")}
-                      aria-pressed={i18n.language === "en"}
+                      aria-pressed={i18n.language.startsWith("en")}
                     >
                       {t("settings.english")}
                     </Button>
