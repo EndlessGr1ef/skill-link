@@ -1204,7 +1204,7 @@ pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Resul
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skill-link/0.1.0")
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(60))
         .build()
@@ -1231,9 +1231,11 @@ pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Resul
         }],
     };
 
-    let protocol = detect_explanation_api_protocol(&api_url);
+    let explicit_protocol = get_provider_setting(&state.db, "ai_protocol").await;
+    let protocol = resolve_api_protocol(&api_url, explicit_protocol.as_deref());
+    let resolved_url = resolve_custom_url(&api_url, &protocol);
     let mut req_builder = client
-        .post(&api_url)
+        .post(&resolved_url)
         .header("content-type", "application/json");
 
     match protocol {
@@ -1547,7 +1549,9 @@ async fn do_explain_skill_stream(
         .await
         .unwrap_or_default();
 
-    let protocol = detect_explanation_api_protocol(&api_url);
+    let explicit_protocol = get_provider_setting(pool, "ai_protocol").await;
+    let protocol = resolve_api_protocol(&api_url, explicit_protocol.as_deref());
+    let resolved_url = resolve_custom_url(&api_url, &protocol);
     let is_anthropic = matches!(
         protocol,
         ExplanationApiProtocol::AnthropicCompatible | ExplanationApiProtocol::Unknown
@@ -1559,7 +1563,7 @@ async fn do_explain_skill_stream(
 
     // Streaming: only connect_timeout (total `.timeout()` would kill long streams).
     let client = reqwest::Client::builder()
-        .user_agent("skill-link/0.9.1")
+        .user_agent("skill-link/0.1.0")
         .connect_timeout(Duration::from_secs(10))
         .pool_idle_timeout(Duration::from_secs(90))
         .build()
@@ -1567,12 +1571,12 @@ async fn do_explain_skill_stream(
 
     // Try primary endpoint; on connect-layer failure, try fallback once
     let resp =
-        match send_stream_request(&client, &api_url, &api_key, &body, is_anthropic, false).await {
+        match send_stream_request(&client, &resolved_url, &api_key, &body, is_anthropic, false).await {
             Ok(r) => r,
             Err(err_info) => {
                 // Only retry on connect-layer errors that are retryable
                 if err_info.retryable {
-                    if let Some(fallback_url) = get_fallback_endpoint(&provider, &api_url) {
+                    if let Some(fallback_url) = get_fallback_endpoint(&provider, &resolved_url) {
                         eprintln!(
                             "[explain] primary endpoint failed ({:?}), trying fallback: {}",
                             err_info.kind, fallback_url
