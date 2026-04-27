@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Search, RefreshCw, Blocks, FolderOpen, Settings, ArrowUpDown } from "lucide-react";
+import { Search, RefreshCw, Blocks, FolderOpen, Settings, ArrowUpDown, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -231,6 +231,25 @@ export function CentralSkillsView() {
     setSortDirection(v);
     localStorage.setItem(SORT_DIR_KEY, v);
   };
+  const SHOW_ALL_PLATFORM_ICONS_KEY = "skill-link:central:show-all-platform-icons";
+  const [showAllPlatformIcons, setShowAllPlatformIcons] = useState(() => {
+    try {
+      return window.localStorage.getItem(SHOW_ALL_PLATFORM_ICONS_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  function toggleShowAllPlatformIcons() {
+    setShowAllPlatformIcons((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SHOW_ALL_PLATFORM_ICONS_KEY, String(next));
+      } catch {
+        // Ignore storage failures
+      }
+      return next;
+    });
+  }
   const [searchQuery, setSearchQuery] = useState("");
   const [installTargetSkill, setInstallTargetSkill] =
     useState<SkillWithLinks | null>(null);
@@ -413,6 +432,23 @@ export function CentralSkillsView() {
     [agents, platformAgents]
   );
 
+  const activeAgentIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const skill of skills) {
+      if (skill.linked_agents) {
+        for (const aid of skill.linked_agents) {
+          ids.add(aid);
+        }
+      }
+    }
+    return ids;
+  }, [skills]);
+
+  const platformIconAgents = useMemo(() => {
+    if (showAllPlatformIcons) return availableInstallAgents;
+    return availableInstallAgents.filter((a) => a.id === "central" || activeAgentIds.has(a.id));
+  }, [showAllPlatformIcons, availableInstallAgents, activeAgentIds]);
+
   async function handleAfterImportSuccess() {
     const agentIds = Object.keys(skillsByAgent);
     if (agentIds.length === 0) return;
@@ -526,6 +562,23 @@ export function CentralSkillsView() {
                 </button>
               ))}
             </div>
+            <button
+              onClick={toggleShowAllPlatformIcons}
+              title={showAllPlatformIcons ? t("sidebar.hideEmptyPlatforms") : t("sidebar.showAllPlatforms")}
+              aria-label={showAllPlatformIcons ? t("sidebar.hideEmptyPlatforms") : t("sidebar.showAllPlatforms")}
+              className={cn(
+                "h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                showAllPlatformIcons
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+              )}
+            >
+              {showAllPlatformIcons ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              <span className="hidden sm:inline">
+                {showAllPlatformIcons ? t("sidebar.hideEmptyPlatforms") : t("sidebar.showAllPlatforms")}
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -568,7 +621,7 @@ export function CentralSkillsView() {
                 isLoading={isDeleting}
                 detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
                 platformIcons={{
-                  agents,
+                  agents: platformIconAgents,
                   linkedAgents: skill.linked_agents,
                   skillId: skill.id,
                   onToggle: handleTogglePlatform,

@@ -88,9 +88,15 @@ export function PlatformIcon({ agentId, className, size = 16 }: PlatformIconProp
   }
 
   // Use lobehub real product icon if available
+  // Wrap in pointer-events:none span so the SVG's internal <title> (e.g. "Antigravity"
+  // for ClaudeCode) never overrides the parent element's tooltip.
   const LobeIcon = LOBEHUB_ICONS[agentId];
   if (LobeIcon) {
-    return <LobeIcon size={size} className={cn("shrink-0", className)} aria-hidden />;
+    return (
+      <span style={{ pointerEvents: "none" }} className={cn("shrink-0", className)}>
+        <LobeIcon size={size} aria-hidden />
+      </span>
+    );
   }
 
   // Fall back to custom SVGs for remaining platforms
