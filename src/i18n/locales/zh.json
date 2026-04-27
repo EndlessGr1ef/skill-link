@@ -92,7 +92,9 @@
     "sortAscending": "正排",
     "sortDescending": "倒排",
     "sortByNewest": "最新",
-    "sortByOldest": "最早"
+    "sortByOldest": "最早",
+    "deleteSkillLabel": "从中央技能库删除 {{name}}",
+    "deleteError": "删除技能失败: {{error}}"
   },
   "installDialog": {
     "title": "安装 {{name}}",

@@ -100,6 +100,7 @@ export interface UnifiedSkillCardProps {
   uninstallFromLabel?: string;
   onInstall?: () => void;
   onRemove?: () => void;
+  removeLabel?: string;
   isLoading?: boolean;
   detailButtonRef?: Ref<HTMLButtonElement>;
 }
@@ -132,6 +133,7 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
     uninstallFromLabel,
     onInstall,
     onRemove,
+    removeLabel,
     isLoading,
     detailButtonRef,
   } = props;
@@ -286,13 +288,13 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
                   </button>
                 )}
 
-                {/* Remove (collection) */}
+                {/* Remove */}
                 {onRemove && (
                   <InlineConfirmAction
                     onConfirm={onRemove}
                     isLoading={isLoading}
-                    idleTitle={t("collection.removeSkillLabel", { name })}
-                    idleAriaLabel={t("collection.removeSkillLabel", { name })}
+                    idleTitle={removeLabel ?? t("collection.removeSkillLabel", { name })}
+                    idleAriaLabel={removeLabel ?? t("collection.removeSkillLabel", { name })}
                     confirmLabel={t("common.confirmDelete")}
                     icon={<X className="size-4" />}
                   />

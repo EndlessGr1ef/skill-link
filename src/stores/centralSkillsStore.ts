@@ -68,6 +68,7 @@ interface CentralSkillsState {
   ) => Promise<BatchInstallResult>;
   importToCentral: (skillId: string) => Promise<void>;
   togglePlatformLink: (skillId: string, agentId: string) => Promise<void>;
+  deleteSkill: (skillId: string) => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -166,6 +167,18 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
       set({ skills, togglingAgentId: null });
     } catch (err) {
       set({ error: String(err), togglingAgentId: null });
+      throw err;
+    }
+  },
+
+  deleteSkill: async (skillId) => {
+    set({ error: null });
+    try {
+      await invoke("delete_skill_from_central", { skillId });
+      const skills = await invoke<SkillWithLinks[]>("get_central_skills");
+      set({ skills });
+    } catch (err) {
+      set({ error: String(err) });
       throw err;
     }
   },

@@ -1149,6 +1149,11 @@ pub async fn get_skill_by_id(pool: &DbPool, skill_id: &str) -> Result<Option<Ski
 
 /// Delete a skill and all its installation records.
 pub async fn delete_skill(pool: &DbPool, skill_id: &str) -> Result<(), String> {
+    sqlx::query("DELETE FROM skill_explanations WHERE skill_id = ?")
+        .bind(skill_id)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM skill_installations WHERE skill_id = ?")
         .bind(skill_id)
         .execute(pool)

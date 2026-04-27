@@ -92,7 +92,9 @@
     "sortAscending": "Asc",
     "sortDescending": "Desc",
     "sortByNewest": "Newest",
-    "sortByOldest": "Oldest"
+    "sortByOldest": "Oldest",
+    "deleteSkillLabel": "Delete {{name}} from central skills",
+    "deleteError": "Failed to delete skill: {{error}}"
   },
   "installDialog": {
     "title": "Install {{name}}",

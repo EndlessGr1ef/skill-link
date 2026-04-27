@@ -191,6 +191,7 @@ export function CentralSkillsView() {
     useCentralSkillsStore((state) => state.togglePlatformLink) ??
     noopTogglePlatformLink;
   const togglingAgentId = useCentralSkillsStore((state) => state.togglingAgentId);
+  const deleteSkill = useCentralSkillsStore((state) => state.deleteSkill);
 
   // Keep the platform sidebar counts in sync after install.
   const refreshCounts =
@@ -316,6 +317,18 @@ export function CentralSkillsView() {
     }
   }
 
+  async function handleDeleteSkill(skillId: string) {
+    try {
+      await deleteSkill(skillId);
+      if (drawerSkillId === skillId) {
+        setIsDrawerOpen(false);
+      }
+      await refreshCounts();
+    } catch (err) {
+      toast.error(t("central.deleteError", { error: String(err) }));
+    }
+  }
+
   async function handleInstall(skillId: string, agentIds: string[], method: string) {
     try {
       const result = await installSkill(skillId, agentIds, method);
@@ -399,6 +412,8 @@ export function CentralSkillsView() {
         description={skill.description}
         onDetail={() => handleOpenDrawer(skill.id)}
         onInstallTo={() => handleInstallClick(skill)}
+        onRemove={() => handleDeleteSkill(skill.id)}
+        removeLabel={t("central.deleteSkillLabel", { name: skill.name })}
         detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
         className="h-[104px]"
       />
@@ -532,6 +547,8 @@ export function CentralSkillsView() {
                 description={skill.description}
                 onDetail={() => handleOpenDrawer(skill.id)}
                 onInstallTo={() => handleInstallClick(skill)}
+                onRemove={() => handleDeleteSkill(skill.id)}
+                removeLabel={t("central.deleteSkillLabel", { name: skill.name })}
                 detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
                 platformIcons={{
                   agents,

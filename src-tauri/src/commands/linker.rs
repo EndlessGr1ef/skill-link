@@ -478,6 +478,36 @@ pub async fn uninstall_skill_from_agent(
     uninstall_skill_from_agent_impl(&state.db, &skill_id, &agent_id).await
 }
 
+/// Delete a central skill entirely: uninstall from all agents, remove disk
+/// files from the central directory, and purge all DB records.
+#[tauri::command]
+pub async fn delete_skill_from_central(
+    state: State<'_, AppState>,
+    skill_id: String,
+) -> Result<(), String> {
+    let skill = db::get_skill_by_id(&state.db, &skill_id)
+        .await?
+        .ok_or_else(|| format!("Skill '{}' not found", skill_id))?;
+
+    // 1. Uninstall from every linked agent.
+    let installations = db::get_skill_installations(&state.db, &skill_id).await?;
+    for inst in &installations {
+        uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await?;
+    }
+
+    // 2. Remove the skill directory from the central skills dir.
+    let canonical = Path::new(skill.canonical_path.as_deref().unwrap_or(""));
+    if canonical.exists() {
+        std::fs::remove_dir_all(canonical)
+            .map_err(|e| format!("Failed to remove skill directory: {}", e))?;
+    }
+
+    // 3. Purge DB records (skills, skill_installations, skill_explanations).
+    db::delete_skill(&state.db, &skill_id).await?;
+
+    Ok(())
+}
+
 /// Core import-to-central logic — copies a skill from its current location
 /// to the central skills directory and updates the database.
 pub async fn import_skill_to_central_impl(
