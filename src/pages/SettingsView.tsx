@@ -27,7 +27,7 @@ import { deriveHomeDir, formatPathForDisplay, joinPathForDisplay } from "@/lib/p
 
 // ─── App constants ────────────────────────────────────────────────────────────
 
-const APP_VERSION = "0.9.1";
+const APP_VERSION = __APP_VERSION__;
 const DB_PATH_FALLBACK = "~/.skill-link/db.sqlite";
 
 /** Catppuccin Lavender hex per flavor — used for visual preview dots on flavor buttons (default accent). */

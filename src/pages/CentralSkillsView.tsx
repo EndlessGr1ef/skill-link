@@ -215,8 +215,22 @@ export function CentralSkillsView() {
 
   type SortField = "name" | "createdAt" | "updatedAt";
   type SortDirection = "asc" | "desc";
-  const [sortField, setSortField] = useState<SortField>("name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const SORT_FIELD_KEY = "skill-link:central:sortField";
+  const SORT_DIR_KEY = "skill-link:central:sortDirection";
+  const [sortField, setSortField] = useState<SortField>(
+    () => (localStorage.getItem(SORT_FIELD_KEY) as SortField) || "name"
+  );
+  const [sortDirection, setSortDirection] = useState<SortDirection>(
+    () => (localStorage.getItem(SORT_DIR_KEY) as SortDirection) || "asc"
+  );
+  const handleSortFieldChange = (v: SortField) => {
+    setSortField(v);
+    localStorage.setItem(SORT_FIELD_KEY, v);
+  };
+  const handleSortDirectionChange = (v: SortDirection) => {
+    setSortDirection(v);
+    localStorage.setItem(SORT_DIR_KEY, v);
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [installTargetSkill, setInstallTargetSkill] =
     useState<SkillWithLinks | null>(null);
@@ -476,7 +490,7 @@ export function CentralSkillsView() {
                   key={option.value}
                   type="button"
                   aria-pressed={sortField === option.value}
-                  onClick={() => setSortField(option.value)}
+                  onClick={() => handleSortFieldChange(option.value)}
                   className={cn(
                     "h-7 rounded-lg px-3 text-xs font-medium transition-colors cursor-pointer",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
@@ -499,7 +513,7 @@ export function CentralSkillsView() {
                   key={option.value}
                   type="button"
                   aria-pressed={sortDirection === option.value}
-                  onClick={() => setSortDirection(option.value)}
+                  onClick={() => handleSortDirectionChange(option.value)}
                   className={cn(
                     "h-7 rounded-lg px-3 text-xs font-medium transition-colors cursor-pointer",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
