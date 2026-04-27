@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 import { AgentWithStatus, SkillWithLinks } from "@/types";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,9 @@ interface InstallDialogProps {
   skill: InstallTargetSkill | null;
   /** All agents (the 'central' agent will be filtered out). */
   agents: AgentWithStatus[];
+  /** Agent IDs that have at least one skill linked globally. When provided,
+   *  inactive platforms are hidden by default with a toggle to show all. */
+  activeAgentIds?: Set<string>;
   onInstall: (skillId: string, agentIds: string[], method: InstallMethod) => Promise<void>;
 }
 
@@ -41,11 +45,19 @@ export function InstallDialog({
   onOpenChange,
   skill,
   agents,
+  activeAgentIds,
   onInstall,
 }: InstallDialogProps) {
   const { t } = useTranslation();
   // Only show non-central agents in the install dialog.
   const targetAgents = agents.filter((a) => a.id !== "central");
+
+  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+
+  const filteredAgents = useMemo(() => {
+    if (showAllPlatforms || !activeAgentIds || activeAgentIds.size === 0) return targetAgents;
+    return targetAgents.filter((a) => activeAgentIds.has(a.id));
+  }, [showAllPlatforms, targetAgents, activeAgentIds]);
 
   // Track which agents are selected for installation.
   const [selectedAgentIds, setSelectedAgentIds] = useState<Set<string>>(
@@ -69,6 +81,7 @@ export function InstallDialog({
       setSelectedAgentIds(initialSelection);
       setInstallMethod("symlink");
       setError(null);
+      setShowAllPlatforms(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, skill?.id]);
@@ -122,49 +135,66 @@ export function InstallDialog({
           </DialogDescription>
 
           {/* Platform checkboxes */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2" role="group" aria-label={t("installDialog.selectPlatforms")}>
-            {targetAgents.length === 0 ? (
-              <p className="col-span-2 text-sm text-muted-foreground">
+          <div className="space-y-2">
+            {filteredAgents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
                 {t("installDialog.noPlatforms")}
               </p>
             ) : (
-              targetAgents.map((agent) => {
-                const isLinked = skill.linked_agents.includes(agent.id);
-                const isChecked = selectedAgentIds.has(agent.id);
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2" role="group" aria-label={t("installDialog.selectPlatforms")}>
+                {filteredAgents.map((agent) => {
+                  const isLinked = skill.linked_agents.includes(agent.id);
+                  const isChecked = selectedAgentIds.has(agent.id);
 
-                return (
-                  <div
-                    key={agent.id}
-                    className="flex items-center gap-2"
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={(checked) =>
-                        handleCheckboxChange(agent.id, !!checked)
-                      }
-                      aria-label={agent.display_name}
-                    />
-                    <span
-                      className="text-sm text-foreground flex-1 cursor-pointer select-none truncate"
-                      onClick={() =>
-                        handleCheckboxChange(agent.id, !isChecked)
-                      }
+                  return (
+                    <div
+                      key={agent.id}
+                      className="flex items-center gap-2"
                     >
-                      {agent.display_name}
-                    </span>
-                    {isLinked && (
-                      <span className="text-xs text-primary shrink-0">
-                        {t("installDialog.alreadyLinked")}
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={(checked) =>
+                          handleCheckboxChange(agent.id, !!checked)
+                        }
+                        aria-label={agent.display_name}
+                      />
+                      <span
+                        className="text-sm text-foreground flex-1 cursor-pointer select-none truncate"
+                        onClick={() =>
+                          handleCheckboxChange(agent.id, !isChecked)
+                        }
+                      >
+                        {agent.display_name}
                       </span>
-                    )}
-                    {!agent.is_detected && (
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {t("installDialog.notDetected")}
-                      </span>
-                    )}
-                  </div>
-                );
-              })
+                      {isLinked && (
+                        <span className="text-xs text-primary shrink-0">
+                          {t("installDialog.alreadyLinked")}
+                        </span>
+                      )}
+                      {!agent.is_detected && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {t("installDialog.notDetected")}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {(activeAgentIds && activeAgentIds.size > 0) && (
+              <button
+                type="button"
+                onClick={() => setShowAllPlatforms((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer rounded-md px-2 py-1",
+                  showAllPlatforms
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                )}
+              >
+                {showAllPlatforms ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                {showAllPlatforms ? t("sidebar.hideEmptyPlatforms") : t("sidebar.showAllPlatforms")}
+              </button>
             )}
           </div>
 

@@ -19,6 +19,7 @@ import { VirtualizedList } from "@/components/ui/virtualized-list";
 import { formatPathForDisplay } from "@/lib/path";
 import { buildSearchText, normalizeSearchQuery } from "@/lib/search";
 import { isTauriRuntime } from "@/lib/tauri";
+import { useLocalStorageToggle } from "@/hooks/useLocalStorageToggle";
 import { cn } from "@/lib/utils";
 
 const BROWSER_FIXTURE_AGENTS: AgentWithStatus[] = [
@@ -231,25 +232,9 @@ export function CentralSkillsView() {
     setSortDirection(v);
     localStorage.setItem(SORT_DIR_KEY, v);
   };
-  const SHOW_ALL_PLATFORM_ICONS_KEY = "skill-link:central:show-all-platform-icons";
-  const [showAllPlatformIcons, setShowAllPlatformIcons] = useState(() => {
-    try {
-      return window.localStorage.getItem(SHOW_ALL_PLATFORM_ICONS_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
-  function toggleShowAllPlatformIcons() {
-    setShowAllPlatformIcons((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(SHOW_ALL_PLATFORM_ICONS_KEY, String(next));
-      } catch {
-        // Ignore storage failures
-      }
-      return next;
-    });
-  }
+  const [showAllPlatformIcons, toggleShowAllPlatformIcons] = useLocalStorageToggle(
+    "skill-link:central:show-all-platform-icons"
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [installTargetSkill, setInstallTargetSkill] =
     useState<SkillWithLinks | null>(null);
@@ -639,6 +624,7 @@ export function CentralSkillsView() {
         onOpenChange={setIsDialogOpen}
         skill={installTargetSkill}
         agents={agents}
+        activeAgentIds={activeAgentIds}
         onInstall={handleInstall}
       />
 

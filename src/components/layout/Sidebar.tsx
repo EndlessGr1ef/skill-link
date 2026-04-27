@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
+import appIcon from "@/assets/app-icon.png";
 import { usePlatformStore } from "@/stores/platformStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useDiscoverStore } from "@/stores/discoverStore";
+import { useLocalStorageToggle } from "@/hooks/useLocalStorageToggle";
 import { cn } from "@/lib/utils";
 
 // ─── Nav Item ────────────────────────────────────────────────────────────────
@@ -78,7 +80,6 @@ function NavItem({
 // ─── Sidebar ────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
-  const SHOW_ALL_PLATFORMS_KEY = "skill-link:show-all-platforms";
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { t } = useTranslation();
@@ -91,30 +92,14 @@ export function Sidebar() {
   const loadDiscoveredSkills = useDiscoverStore((s) => s.loadDiscoveredSkills);
 
   const [expanded, setExpanded] = useState(true);
-  const [showAllPlatforms, setShowAllPlatforms] = useState(() => {
-    try {
-      return window.localStorage.getItem(SHOW_ALL_PLATFORMS_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [showAllPlatforms, toggleShowAllPlatforms] = useLocalStorageToggle(
+    "skill-link:show-all-platforms"
+  );
 
   useEffect(() => {
     loadCollections();
     loadDiscoveredSkills();
   }, [loadCollections, loadDiscoveredSkills]);
-
-  function toggleShowAllPlatforms() {
-    setShowAllPlatforms((previous) => {
-      const next = !previous;
-      try {
-        window.localStorage.setItem(SHOW_ALL_PLATFORMS_KEY, String(next));
-      } catch {
-        // Ignore storage failures and keep the in-memory preference.
-      }
-      return next;
-    });
-  }
 
   const platformAgents = agents.filter(
     (a) =>
@@ -147,7 +132,8 @@ export function Sidebar() {
         )}
       >
         {expanded && (
-          <span className="text-sm font-bold tracking-tight text-sidebar-primary leading-none">
+          <span className="text-sm font-bold tracking-tight text-sidebar-primary leading-none flex-1 text-center flex items-center justify-center gap-1.5">
+            <img src={appIcon} alt="" className="size-5 rounded-sm" aria-hidden />
             {t("app.name")}
           </span>
         )}
@@ -290,7 +276,10 @@ export function Sidebar() {
               )}
             >
               {showAllPlatforms ? <EyeOff className="size-4 shrink-0" /> : <Eye className="size-4 shrink-0" />}
-              {expanded && (
+        {!expanded && (
+          <img src={appIcon} alt={t("app.name")} className="size-5 rounded-sm" />
+        )}
+        {expanded && (
                 <span className="truncate">
                   {showAllPlatforms ? t("sidebar.hideEmptyPlatforms") : t("sidebar.showAllPlatforms")}
                 </span>
