@@ -1191,26 +1191,15 @@ fn format_reqwest_error(e: &reqwest::Error) -> String {
 
 #[tauri::command]
 pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Result<String, String> {
-    // Read dynamic provider settings
-    async fn get_setting(pool: &crate::db::DbPool, key: &str) -> Option<String> {
-        sqlx::query_scalar::<_, String>("SELECT value FROM settings WHERE key = ?")
-            .bind(key)
-            .fetch_optional(pool)
-            .await
-            .ok()
-            .flatten()
-            .filter(|v| !v.trim().is_empty())
-    }
-
-    let api_key = get_setting(&state.db, "ai_api_key")
+    let api_key = get_provider_setting(&state.db, "ai_api_key")
         .await
         .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
 
-    let api_url = get_setting(&state.db, "ai_api_url")
+    let api_url = get_provider_setting(&state.db, "ai_api_url")
         .await
         .unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
 
-    let model = get_setting(&state.db, "ai_model")
+    let model = get_provider_setting(&state.db, "ai_model")
         .await
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
@@ -1542,15 +1531,15 @@ async fn do_explain_skill_stream(
     content: &str,
     lang: &str,
 ) -> Result<(), String> {
-    let api_key = get_ai_setting(pool, "ai_api_key")
+    let api_key = get_provider_setting(pool, "ai_api_key")
         .await
         .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
 
-    let api_url = get_ai_setting(pool, "ai_api_url")
+    let api_url = get_provider_setting(pool, "ai_api_url")
         .await
         .unwrap_or_else(|| "https://api.anthropic.com/v1/messages".to_string());
 
-    let model = get_ai_setting(pool, "ai_model")
+    let model = get_provider_setting(pool, "ai_model")
         .await
         .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
 
