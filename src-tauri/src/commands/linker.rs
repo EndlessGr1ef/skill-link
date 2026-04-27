@@ -480,6 +480,9 @@ pub async fn uninstall_skill_from_agent(
 
 /// Delete a central skill entirely: uninstall from all agents, remove disk
 /// files from the central directory, and purge all DB records.
+///
+/// Individual agent uninstall failures are tolerated (logged but not
+/// fatal) so that disk cleanup and DB purge always proceed.
 #[tauri::command]
 pub async fn delete_skill_from_central(
     state: State<'_, AppState>,
@@ -489,20 +492,30 @@ pub async fn delete_skill_from_central(
         .await?
         .ok_or_else(|| format!("Skill '{}' not found", skill_id))?;
 
-    // 1. Uninstall from every linked agent.
+    // 1. Uninstall from every linked agent (best-effort).
     let installations = db::get_skill_installations(&state.db, &skill_id).await?;
     for inst in &installations {
-        uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await?;
+        if let Err(e) = uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await {
+            eprintln!(
+                "Warning: failed to uninstall skill '{}' from agent '{}': {}",
+                skill_id, inst.agent_id, e
+            );
+        }
     }
 
     // 2. Remove the skill directory from the central skills dir.
-    let canonical = Path::new(skill.canonical_path.as_deref().unwrap_or(""));
+    let canonical_str = skill
+        .canonical_path
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| format!("Skill '{}' has no canonical path, cannot safely delete", skill_id))?;
+    let canonical = Path::new(canonical_str);
     if canonical.exists() {
         std::fs::remove_dir_all(canonical)
             .map_err(|e| format!("Failed to remove skill directory: {}", e))?;
     }
 
-    // 3. Purge DB records (skills, skill_installations, skill_explanations).
+    // 3. Purge DB records (skills, skill_installations, skill_explanations) in a transaction.
     db::delete_skill(&state.db, &skill_id).await?;
 
     Ok(())

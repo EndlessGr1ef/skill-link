@@ -192,6 +192,7 @@ export function CentralSkillsView() {
     noopTogglePlatformLink;
   const togglingAgentId = useCentralSkillsStore((state) => state.togglingAgentId);
   const deleteSkill = useCentralSkillsStore((state) => state.deleteSkill);
+  const isDeleting = useCentralSkillsStore((state) => state.isDeleting);
 
   // Keep the platform sidebar counts in sync after install.
   const refreshCounts =
@@ -414,6 +415,7 @@ export function CentralSkillsView() {
         onInstallTo={() => handleInstallClick(skill)}
         onRemove={() => handleDeleteSkill(skill.id)}
         removeLabel={t("central.deleteSkillLabel", { name: skill.name })}
+        isLoading={isDeleting}
         detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
         className="h-[104px]"
       />
@@ -549,6 +551,7 @@ export function CentralSkillsView() {
                 onInstallTo={() => handleInstallClick(skill)}
                 onRemove={() => handleDeleteSkill(skill.id)}
                 removeLabel={t("central.deleteSkillLabel", { name: skill.name })}
+                isLoading={isDeleting}
                 detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
                 platformIcons={{
                   agents,

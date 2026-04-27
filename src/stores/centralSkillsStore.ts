@@ -55,6 +55,7 @@ interface CentralSkillsState {
   agents: AgentWithStatus[];
   isLoading: boolean;
   isInstalling: boolean;
+  isDeleting: boolean;
   /** Agent ID currently being toggled (null = idle). */
   togglingAgentId: string | null;
   error: string | null;
@@ -78,6 +79,7 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
   agents: [],
   isLoading: false,
   isInstalling: false,
+  isDeleting: false,
   togglingAgentId: null,
   error: null,
 
@@ -172,13 +174,17 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
   },
 
   deleteSkill: async (skillId) => {
-    set({ error: null });
+    set({ isDeleting: true, error: null });
+    if (!isTauriRuntime()) {
+      set({ skills: BROWSER_FIXTURE_SKILLS.filter((s) => s.id !== skillId), isDeleting: false });
+      return;
+    }
     try {
       await invoke("delete_skill_from_central", { skillId });
       const skills = await invoke<SkillWithLinks[]>("get_central_skills");
-      set({ skills });
+      set({ skills, isDeleting: false });
     } catch (err) {
-      set({ error: String(err) });
+      set({ error: String(err), isDeleting: false });
       throw err;
     }
   },

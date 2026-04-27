@@ -1147,24 +1147,25 @@ pub async fn get_skill_by_id(pool: &DbPool, skill_id: &str) -> Result<Option<Ski
         .map_err(|e| e.to_string())
 }
 
-/// Delete a skill and all its installation records.
+/// Delete a skill and all its installation records within a transaction.
 pub async fn delete_skill(pool: &DbPool, skill_id: &str) -> Result<(), String> {
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM skill_explanations WHERE skill_id = ?")
         .bind(skill_id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM skill_installations WHERE skill_id = ?")
         .bind(skill_id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM skills WHERE id = ?")
         .bind(skill_id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    tx.commit().await.map_err(|e| e.to_string())
 }
 
 // ─── Skill Installations ──────────────────────────────────────────────────────
