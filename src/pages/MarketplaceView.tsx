@@ -31,6 +31,7 @@ import {
 import { MarketplaceSkillDetailDrawer, type MarketplaceSkillDetail } from "@/components/marketplace/MarketplaceSkillDetailDrawer";
 import { GitHubRepoImportWizard } from "@/components/marketplace/GitHubRepoImportWizard";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
+import { fetchRemoteText, installRemoteSkillDirectory } from "@/lib/remoteContent";
 import { cn } from "@/lib/utils";
 import type { GitHubRepoPreview, SkillsShFileEntry, SkillsShSkill } from "@/types";
 
@@ -275,10 +276,17 @@ export function MarketplaceView() {
   async function handleInstallPreviewSkill(skill: PreviewSkill) {
     setPreviewInstallingIds((prev) => new Set(prev).add(skill.name));
     try {
-      // Download SKILL.md and write to central dir via Tauri FS plugin
-      const resp = await fetch(skill.downloadUrl);
-      if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
-      const content = await resp.text();
+      const installedSkillName = await installRemoteSkillDirectory(skill.downloadUrl);
+      if (installedSkillName) {
+        await Promise.all([rescan(), loadCentralSkills()]);
+        setDetailSkill((current) =>
+          current && current.downloadUrl === skill.downloadUrl ? { ...current, installed: true } : current
+        );
+        toast.success(t("marketplace.installSuccess"));
+        return;
+      }
+
+      const content = await fetchRemoteText(skill.downloadUrl);
 
       // Write via the Tauri FS plugin
       const { writeTextFile, mkdir, BaseDirectory } = await import("@tauri-apps/plugin-fs");
@@ -287,6 +295,7 @@ export function MarketplaceView() {
       await writeTextFile(`${skillDir}/SKILL.md`, content, { baseDir: BaseDirectory.Home });
 
       await rescan();
+      await loadCentralSkills();
       toast.success(t("marketplace.installSuccess"));
     } catch (err) {
       toast.error(String(err));
@@ -450,7 +459,6 @@ export function MarketplaceView() {
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {filteredRecommended.map((skill) => {
-                  const downloadUrl = `https://raw.githubusercontent.com/${skill.repoFullName}/main/${skill.name}/SKILL.md`;
                   return (
                     <UnifiedSkillCard
                       key={skill.name}
@@ -467,7 +475,7 @@ export function MarketplaceView() {
                             id: skill.name,
                             name: skill.name,
                             description: skill.description,
-                            downloadUrl,
+                            downloadUrl: skill.downloadUrl,
                             publisher: skill.publisher,
                             sourceLabel: skill.publisher,
                             sourceUrl: `https://github.com/${skill.repoFullName}`,

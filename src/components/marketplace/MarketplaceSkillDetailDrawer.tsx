@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { parseFrontmatter } from "@/lib/frontmatter";
 import { setupExplanationStreamListeners } from "@/lib/explanationStream";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
+import { browseRemoteSkillDirectory, fetchRemoteText } from "@/lib/remoteContent";
 import { cn } from "@/lib/utils";
 import i18n from "@/i18n";
 import { FileTreeNode } from "@/components/skill/FileTreeNode";
@@ -68,12 +69,14 @@ export function MarketplaceSkillDetailDrawer({
   const explanationUnlistenRef = useRef<(() => void) | null>(null);
   const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(new Set());
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  const [remoteFiles, setRemoteFiles] = useState<SkillsShFileEntry[] | null>(null);
   const browserMode = !isTauriRuntime();
+  const displayFiles = skill?.files ?? remoteFiles;
 
   const directoryTree = useMemo(() => {
-    if (!skill?.files) return [];
-    return buildSkillDirectoryTree(skill.files);
-  }, [skill?.files]);
+    if (!displayFiles) return [];
+    return buildSkillDirectoryTree(displayFiles);
+  }, [displayFiles]);
 
   function handleToggleDirectory(path: string) {
     setExpandedDirectories((prev) => {
@@ -117,11 +120,7 @@ export function MarketplaceSkillDetailDrawer({
     if (!url) return;
     setIsLoadingContent(true);
     try {
-      const resp = await fetch(url);
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}`);
-      }
-      setContent(await resp.text());
+      setContent(await fetchRemoteText(url));
     } catch {
       setContent("Failed to load file content.");
     } finally {
@@ -137,9 +136,19 @@ export function MarketplaceSkillDetailDrawer({
     setExplanationError(null);
     setShowExplanation(false);
 
-    if (skill.files && skill.files.length > 0) {
-      // skills.sh mode: default-select SKILL.md
-      const skillMd = skill.files.find(
+    let files = skill.files;
+    if ((!files || files.length === 0) && skill.downloadUrl) {
+      try {
+        files = await browseRemoteSkillDirectory(skill.downloadUrl);
+        setRemoteFiles(files);
+      } catch {
+        setRemoteFiles([]);
+      }
+    }
+
+    if (files && files.length > 0) {
+      // Directory mode: default-select SKILL.md
+      const skillMd = files.find(
         (f) => !f.is_dir && f.name === "SKILL.md"
       );
       if (skillMd) {
@@ -160,11 +169,7 @@ export function MarketplaceSkillDetailDrawer({
       setViewMode("markdown");
       setIsLoadingContent(true);
       try {
-        const resp = await fetch(skill.downloadUrl);
-        if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}`);
-        }
-        setContent(await resp.text());
+        setContent(await fetchRemoteText(skill.downloadUrl));
       } catch {
         setContent("Failed to load SKILL.md content.");
       } finally {
@@ -175,6 +180,8 @@ export function MarketplaceSkillDetailDrawer({
 
   useEffect(() => {
     if (open && skill) {
+      setRemoteFiles(skill.files ?? null);
+      setExpandedDirectories(new Set());
       void loadInitialContent();
     }
   }, [open, skill, loadInitialContent]);
@@ -434,10 +441,10 @@ export function MarketplaceSkillDetailDrawer({
                 data-testid="skill-detail-right-sidebar"
                 className="w-full shrink-0 border-t border-border overflow-y-auto p-4 space-y-5 md:w-64 md:border-t-0 md:border-l"
               >
-                {skill.files ? (
+                {displayFiles ? (
                   <section>
                     <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-2">
-                      Files ({skill.files.length})
+                      Files ({displayFiles.length})
                     </div>
                     <div className="space-y-1">
                       {directoryTree.map((node) => (

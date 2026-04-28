@@ -90,6 +90,13 @@ pub struct GitHubRepoPreview {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct RemoteSkillFileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GitHubSkillImportSelection {
     pub source_path: String,
@@ -294,6 +301,92 @@ pub async fn fetch_github_skill_markdown(
     let client = github_client()?;
     let auth = github_direct_auth_from_settings(&state.db).await?;
     fetch_raw_text(&client, &download_url, auth.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn browse_github_skill_directory(
+    state: State<'_, AppState>,
+    download_url: String,
+) -> Result<Vec<RemoteSkillFileEntry>, String> {
+    let (raw_path, skill_dir) = raw_skill_download_url_parts(&download_url)?;
+    let client = github_client()?;
+    let auth = github_direct_auth_from_settings(&state.db).await?;
+    let tree_url = format!(
+        "https://api.github.com/repos/{}/{}/git/trees/{}?recursive=1",
+        raw_path.repo.owner, raw_path.repo.repo, raw_path.repo.branch
+    );
+    let response = send_with_auth_fallback(&client, &tree_url, auth.as_deref())
+        .await
+        .map_err(|e| format!("GitHub API request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(
+            classify_github_denial_response(response, "browsing skill directory")
+                .await
+                .unwrap_or_else(|| format!("Failed to browse skill directory: HTTP {}", status)),
+        );
+    }
+
+    let tree_data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse GitHub tree response: {}", e))?;
+
+    Ok(tree_entries_under_skill_dir(&tree_data, &skill_dir))
+}
+
+#[tauri::command]
+pub async fn install_github_skill_directory(
+    state: State<'_, AppState>,
+    download_url: String,
+) -> Result<String, String> {
+    let (raw_path, source_path) = raw_skill_download_url_parts(&download_url)?;
+    let client = github_client()?;
+    let auth = github_direct_auth_from_settings(&state.db).await?;
+    let snapshot = download_repo_snapshot(&client, &raw_path.repo, auth.as_deref()).await?;
+
+    let skill_md_path = format!("{}/SKILL.md", source_path);
+    let raw_content = snapshot
+        .files
+        .get(&skill_md_path)
+        .ok_or_else(|| format!("SKILL.md not found at '{}' in snapshot", skill_md_path))?;
+    let content_str =
+        std::str::from_utf8(raw_content).map_err(|_| "SKILL.md is not valid UTF-8.".to_string())?;
+    let frontmatter = parse_frontmatter(content_str)
+        .ok_or_else(|| "Skill is missing valid frontmatter.".to_string())?;
+    let skill_name = frontmatter.name;
+
+    let source_files = collect_snapshot_source_files(&snapshot, &source_path)?;
+    let central_root = central_skills_root(&state.db).await?;
+    let skill_dir = central_root.join(&skill_name);
+    let mut progress_state = GitHubImportProgressState::default();
+    write_snapshot_source_to_target(
+        &snapshot,
+        &source_files,
+        &skill_dir,
+        &source_path,
+        &mut progress_state,
+        None,
+    )?;
+
+    let db_skill = Skill {
+        id: skill_name.clone(),
+        name: skill_name.clone(),
+        description: frontmatter.description,
+        file_path: skill_dir.join("SKILL.md").to_string_lossy().into_owned(),
+        canonical_path: Some(skill_dir.to_string_lossy().into_owned()),
+        is_central: true,
+        source: Some(format!(
+            "github:{}/{}",
+            raw_path.repo.owner, raw_path.repo.repo
+        )),
+        content: None,
+        scanned_at: Utc::now().to_rfc3339(),
+    };
+    db::upsert_skill(&state.db, &db_skill).await?;
+
+    Ok(skill_name)
 }
 
 async fn preview_github_repo_import_impl(
@@ -1108,6 +1201,12 @@ async fn fetch_raw_text(
     .await?;
 
     if !response.status().is_success() {
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            if let Some(text) = fetch_raw_skill_text_from_snapshot(client, url, auth_token).await? {
+                return Ok(text);
+            }
+        }
+
         return Err(
             classify_github_denial_response(response, "downloading skill metadata")
                 .await
@@ -1121,10 +1220,120 @@ async fn fetch_raw_text(
         .map_err(|e| format!("Failed to read skill metadata: {}", e))
 }
 
+async fn fetch_raw_skill_text_from_snapshot(
+    client: &reqwest::Client,
+    url: &str,
+    auth_token: Option<&str>,
+) -> Result<Option<String>, String> {
+    let raw_path = match raw_url_to_repo_path(url) {
+        Some(path) => path,
+        None => return Ok(None),
+    };
+
+    if !raw_path.file_path.ends_with("SKILL.md") {
+        return Ok(None);
+    }
+
+    let skill_dir_name = match Path::new(&raw_path.file_path)
+        .parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|name| name.to_str())
+    {
+        Some(name) if !name.is_empty() => name,
+        _ => return Ok(None),
+    };
+
+    let snapshot = download_repo_snapshot(client, &raw_path.repo, auth_token).await?;
+    let skill_md_path = snapshot.files.keys().find(|path| {
+        let path = Path::new(path);
+        path.file_name().and_then(|name| name.to_str()) == Some("SKILL.md")
+            && path
+                .parent()
+                .and_then(|parent| parent.file_name())
+                .and_then(|name| name.to_str())
+                == Some(skill_dir_name)
+    });
+
+    let Some(skill_md_path) = skill_md_path else {
+        return Ok(None);
+    };
+
+    let content = snapshot
+        .files
+        .get(skill_md_path)
+        .expect("snapshot key should exist");
+    let text = std::str::from_utf8(content)
+        .map_err(|_| format!("{} is not valid UTF-8.", skill_md_path))?;
+    Ok(Some(text.to_string()))
+}
+
 #[derive(Debug, Clone)]
 struct RawRepoPath {
     repo: GitHubRepoRef,
     file_path: String,
+}
+
+fn raw_skill_download_url_parts(download_url: &str) -> Result<(RawRepoPath, String), String> {
+    let raw_path = raw_url_to_repo_path(download_url)
+        .ok_or_else(|| "Expected a raw.githubusercontent.com SKILL.md URL.".to_string())?;
+    if !raw_path.file_path.ends_with("SKILL.md") {
+        return Err("Expected a SKILL.md download URL.".to_string());
+    }
+
+    let skill_dir = Path::new(&raw_path.file_path)
+        .parent()
+        .and_then(|parent| parent.to_str())
+        .filter(|path| !path.is_empty())
+        .ok_or_else(|| {
+            "Could not determine the skill directory from the download URL.".to_string()
+        })?
+        .replace('\\', "/");
+
+    if !is_safe_repo_relative_path(&skill_dir) {
+        return Err(format!(
+            "Skill directory '{}' is not a safe repository path.",
+            skill_dir
+        ));
+    }
+
+    Ok((raw_path, skill_dir))
+}
+
+fn tree_entries_under_skill_dir(
+    tree_data: &serde_json::Value,
+    dir_path: &str,
+) -> Vec<RemoteSkillFileEntry> {
+    let prefix = format!("{}/", dir_path.trim_matches('/'));
+    let tree = match tree_data.get("tree").and_then(|tree| tree.as_array()) {
+        Some(tree) => tree,
+        None => return Vec::new(),
+    };
+
+    let mut files = Vec::new();
+    for entry in tree {
+        let path = match entry.get("path").and_then(|path| path.as_str()) {
+            Some(path) => path,
+            None => continue,
+        };
+        if path == dir_path || !path.starts_with(&prefix) {
+            continue;
+        }
+
+        let name = path.rsplit('/').next().unwrap_or(path).to_string();
+        let is_dir = entry.get("type").and_then(|kind| kind.as_str()) == Some("tree");
+        files.push(RemoteSkillFileEntry {
+            name,
+            path: path.to_string(),
+            is_dir,
+        });
+    }
+
+    files.sort_by(|left, right| {
+        left.path
+            .cmp(&right.path)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    files
 }
 
 fn raw_url_to_repo_path(url: &str) -> Option<RawRepoPath> {

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MarketplaceSkillDetailDrawer } from "@/components/marketplace/MarketplaceSkillDetailDrawer";
+import { invoke } from "@tauri-apps/api/core";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
 
 vi.mock("@/components/skill/SkillDetailDrawer", () => ({
   SkillDetailDrawer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -56,6 +61,12 @@ const skillWithFilesNoSkillMd = {
   files: skillWithFiles.files!.filter((f) => f.name !== "SKILL.md"),
 };
 
+const githubSkillWithoutFiles = {
+  ...skillWithFiles,
+  id: "skill-5",
+  files: undefined,
+};
+
 const mockSkillMdContent = `---
 name: baoyu-imagine
 version: 1.57.0
@@ -81,25 +92,36 @@ const mockReadmeContent = `# README
 
 Some documentation here.`;
 
+function contentForUrl(url: string) {
+  if (url.includes("README.md")) {
+    return mockReadmeContent;
+  }
+  if (url.includes("helper.ts")) {
+    return mockHelperTsContent;
+  }
+  return mockSkillMdContent;
+}
+
 describe("MarketplaceSkillDetailDrawer", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  const mockInvoke = vi.mocked(invoke);
 
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    fetchMock = vi.fn((url: string) => {
-      let text: string;
-      if (url.includes("SKILL.md")) {
-        text = mockSkillMdContent;
-      } else if (url.includes("README.md")) {
-        text = mockReadmeContent;
-      } else if (url.includes("helper.ts")) {
-        text = mockHelperTsContent;
-      } else {
-        text = mockSkillMdContent;
+    mockInvoke.mockImplementation((command, args) => {
+      if (command === "fetch_github_skill_markdown") {
+        const { downloadUrl } = args as { downloadUrl: string };
+        return Promise.resolve(contentForUrl(downloadUrl));
       }
-      return Promise.resolve({ ok: true, text: async () => text });
+      if (command === "browse_github_skill_directory") {
+        return Promise.resolve(skillWithFiles.files);
+      }
+      return Promise.resolve(undefined);
     });
+    fetchMock = vi.fn((url: string) =>
+      Promise.resolve({ ok: true, text: async () => contentForUrl(url) })
+    );
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -169,10 +191,9 @@ describe("MarketplaceSkillDetailDrawer", () => {
       expect(screen.getByRole("heading", { name: /Frontmatter/i })).toBeInTheDocument();
     });
 
-    // Should fetch from the constructed raw.githubusercontent URL
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/SKILL.md"
-    );
+    expect(mockInvoke).toHaveBeenCalledWith("fetch_github_skill_markdown", {
+      downloadUrl: "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/SKILL.md",
+    });
 
     // SKILL.md path should be highlighted in the tree
     const treeItem = screen.getByRole("button", { name: "SKILL.md" });
@@ -202,6 +223,27 @@ describe("MarketplaceSkillDetailDrawer", () => {
     });
   });
 
+  it("loads a GitHub skill directory tree when the skill has no file list", async () => {
+    render(
+      <MarketplaceSkillDetailDrawer
+        open
+        skill={githubSkillWithoutFiles}
+        onOpenChange={vi.fn()}
+        onInstall={vi.fn()}
+        isInstalling={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("browse_github_skill_directory", {
+        downloadUrl: "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/SKILL.md",
+      });
+    });
+
+    expect(await screen.findByText(/Files \(4\)/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "README.md" })).toBeInTheDocument();
+  });
+
   // ─── skills.sh mode: click file → fetch & preview ──────────────────────
 
   it("loads and displays non-markdown file content as raw text when clicked", async () => {
@@ -227,11 +269,11 @@ describe("MarketplaceSkillDetailDrawer", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "helper.ts" }));
 
-    // Should fetch the helper.ts file
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/scripts/helper.ts"
-      );
+      expect(mockInvoke).toHaveBeenCalledWith("fetch_github_skill_markdown", {
+        downloadUrl:
+          "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/scripts/helper.ts",
+      });
     });
 
     // Should switch to raw view and show the content as pre text
@@ -264,9 +306,10 @@ describe("MarketplaceSkillDetailDrawer", () => {
     fireEvent.click(screen.getByRole("button", { name: "README.md" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/README.md"
-      );
+      expect(mockInvoke).toHaveBeenCalledWith("fetch_github_skill_markdown", {
+        downloadUrl:
+          "https://raw.githubusercontent.com/acme/repo-one/main/skills/file-tree-skill/README.md",
+      });
     });
 
     // Should render as markdown (README.md is markdown)

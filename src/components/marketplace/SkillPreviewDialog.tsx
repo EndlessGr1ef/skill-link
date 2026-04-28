@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { parseFrontmatter } from "@/lib/frontmatter";
 import { setupExplanationStreamListeners } from "@/lib/explanationStream";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
+import { fetchRemoteText } from "@/lib/remoteContent";
 import { cn } from "@/lib/utils";
 import i18n from "@/i18n";
 
@@ -79,9 +80,7 @@ export function SkillPreviewDialog({
   const fetchContent = useCallback(async () => {
     setIsLoadingContent(true);
     try {
-      const resp = await fetch(downloadUrl);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      setContent(await resp.text());
+      setContent(await fetchRemoteText(downloadUrl));
     } catch {
       setContent("Failed to load SKILL.md content.");
     } finally {

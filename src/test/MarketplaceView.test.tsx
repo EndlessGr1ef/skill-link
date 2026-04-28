@@ -459,6 +459,55 @@ describe("MarketplaceView", () => {
     ).toBeInTheDocument();
   });
 
+  it("installs recommended GitHub skills as full directories", async () => {
+    const invokeSpy = vi.spyOn(tauriBridge, "invoke").mockImplementation(async (command) => {
+      if (command === "browse_github_skill_directory") {
+        return [
+          {
+            name: "SKILL.md",
+            path: "skills/web-artifacts-builder/SKILL.md",
+            is_dir: false,
+          },
+          {
+            name: "scripts",
+            path: "skills/web-artifacts-builder/scripts",
+            is_dir: true,
+          },
+          {
+            name: "build.ts",
+            path: "skills/web-artifacts-builder/scripts/build.ts",
+            is_dir: false,
+          },
+        ];
+      }
+      if (command === "fetch_github_skill_markdown") {
+        return "---\nname: web-artifacts-builder\n---\n\nBody";
+      }
+      if (command === "install_github_skill_directory") {
+        return "web-artifacts-builder";
+      }
+      return undefined as never;
+    });
+
+    renderView();
+    fireEvent.click(screen.getByRole("button", { name: "web-artifacts-builder" }));
+
+    const sidebar = await screen.findByTestId("skill-detail-right-sidebar");
+    await screen.findByText(/Files \(3\)/i);
+    fireEvent.click(within(sidebar).getByRole("button", { name: /Install|安装/i }));
+
+    await waitFor(() => {
+      expect(invokeSpy).toHaveBeenCalledWith("install_github_skill_directory", {
+        downloadUrl:
+          "https://raw.githubusercontent.com/anthropics/skills/main/skills/web-artifacts-builder/SKILL.md",
+      });
+    });
+    expect(mockRescan).toHaveBeenCalled();
+    expect(mockLoadCentralSkills).toHaveBeenCalled();
+
+    invokeSpy.mockRestore();
+  });
+
   it("routes skills.sh detail install through installFromSkillsSh", async () => {
     storeState.skillsShResults = [
       {
