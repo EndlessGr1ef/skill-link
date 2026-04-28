@@ -1,4 +1,11 @@
 @import "tailwindcss";
+
+/* Tauri v2: enable window drag on elements with data-tauri-drag-region */
+*[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
