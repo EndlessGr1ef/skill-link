@@ -139,10 +139,11 @@ export function MarketplaceSkillDetailDrawer({
     let files = skill.files;
     if ((!files || files.length === 0) && skill.downloadUrl) {
       try {
-        files = await browseRemoteSkillDirectory(skill.downloadUrl);
-        setRemoteFiles(files);
+        const remoteDirectoryFiles = await browseRemoteSkillDirectory(skill.downloadUrl);
+        files = remoteDirectoryFiles.length > 0 ? remoteDirectoryFiles : undefined;
+        setRemoteFiles(remoteDirectoryFiles.length > 0 ? remoteDirectoryFiles : null);
       } catch {
-        setRemoteFiles([]);
+        setRemoteFiles(null);
       }
     }
 
@@ -441,7 +442,7 @@ export function MarketplaceSkillDetailDrawer({
                 data-testid="skill-detail-right-sidebar"
                 className="w-full shrink-0 border-t border-border overflow-y-auto p-4 space-y-5 md:w-64 md:border-t-0 md:border-l"
               >
-                {displayFiles ? (
+                {displayFiles && displayFiles.length > 0 ? (
                   <section>
                     <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80 mb-2">
                       Files ({displayFiles.length})

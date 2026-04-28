@@ -244,6 +244,35 @@ describe("MarketplaceSkillDetailDrawer", () => {
     expect(screen.getByRole("button", { name: "README.md" })).toBeInTheDocument();
   });
 
+  it("does not render an empty file tree section when remote directory listing is unavailable", async () => {
+    mockInvoke.mockImplementation((command, args) => {
+      if (command === "fetch_github_skill_markdown") {
+        const { downloadUrl } = args as { downloadUrl: string };
+        return Promise.resolve(contentForUrl(downloadUrl));
+      }
+      if (command === "browse_github_skill_directory") {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(undefined);
+    });
+
+    render(
+      <MarketplaceSkillDetailDrawer
+        open
+        skill={githubSkillWithoutFiles}
+        onOpenChange={vi.fn()}
+        onInstall={vi.fn()}
+        isInstalling={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("react-markdown")).toHaveTextContent("# Image Generation");
+    });
+
+    expect(screen.queryByText("Files (0)")).not.toBeInTheDocument();
+  });
+
   // ─── skills.sh mode: click file → fetch & preview ──────────────────────
 
   it("loads and displays non-markdown file content as raw text when clicked", async () => {
