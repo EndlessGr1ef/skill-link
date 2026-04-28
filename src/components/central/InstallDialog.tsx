@@ -16,6 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioItem } from "@/components/ui/radio-group";
 import { AgentWithStatus, SkillWithLinks } from "@/types";
+import { useLocalStorageToggle } from "@/hooks/useLocalStorageToggle";
+import {
+  LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS,
+  SHOW_ALL_PLATFORMS_STORAGE_KEY,
+} from "@/lib/platformVisibility";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,7 +57,11 @@ export function InstallDialog({
   // Only show non-central agents in the install dialog.
   const targetAgents = agents.filter((a) => a.id !== "central");
 
-  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  const [showAllPlatforms, toggleShowAllPlatforms] = useLocalStorageToggle(
+    SHOW_ALL_PLATFORMS_STORAGE_KEY,
+    false,
+    LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS
+  );
 
   const filteredAgents = useMemo(() => {
     if (showAllPlatforms || !activeAgentIds || activeAgentIds.size === 0) return targetAgents;
@@ -81,7 +90,6 @@ export function InstallDialog({
       setSelectedAgentIds(initialSelection);
       setInstallMethod("symlink");
       setError(null);
-      setShowAllPlatforms(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, skill?.id]);
@@ -184,7 +192,7 @@ export function InstallDialog({
             {(activeAgentIds && activeAgentIds.size > 0) && (
               <button
                 type="button"
-                onClick={() => setShowAllPlatforms((v) => !v)}
+                onClick={toggleShowAllPlatforms}
                 className={cn(
                   "flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer rounded-md px-2 py-1",
                   showAllPlatforms

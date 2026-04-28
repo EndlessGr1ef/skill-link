@@ -328,7 +328,7 @@ describe("Sidebar", () => {
 
   it("renders Discover entry in sidebar", () => {
     renderSidebar();
-    expect(screen.getByRole("button", { name: "项目技能库" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "项目技能" })).toBeInTheDocument();
   });
 
   it("renders show all platforms toggle", () => {

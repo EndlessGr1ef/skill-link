@@ -17,6 +17,10 @@ import { GitHubRepoImportWizard } from "@/components/marketplace/GitHubRepoImpor
 import { useMarketplaceStore } from "@/stores/marketplaceStore";
 import { VirtualizedList } from "@/components/ui/virtualized-list";
 import { formatPathForDisplay } from "@/lib/path";
+import {
+  LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS,
+  SHOW_ALL_PLATFORMS_STORAGE_KEY,
+} from "@/lib/platformVisibility";
 import { buildSearchText, normalizeSearchQuery } from "@/lib/search";
 import { isTauriRuntime } from "@/lib/tauri";
 import { useLocalStorageToggle } from "@/hooks/useLocalStorageToggle";
@@ -233,7 +237,9 @@ export function CentralSkillsView() {
     localStorage.setItem(SORT_DIR_KEY, v);
   };
   const [showAllPlatformIcons, toggleShowAllPlatformIcons] = useLocalStorageToggle(
-    "skill-link:central:show-all-platform-icons"
+    SHOW_ALL_PLATFORMS_STORAGE_KEY,
+    false,
+    LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [installTargetSkill, setInstallTargetSkill] =

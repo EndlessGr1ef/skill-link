@@ -18,6 +18,10 @@ import { usePlatformStore } from "@/stores/platformStore";
 import { useCollectionStore } from "@/stores/collectionStore";
 import { useDiscoverStore } from "@/stores/discoverStore";
 import { useLocalStorageToggle } from "@/hooks/useLocalStorageToggle";
+import {
+  LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS,
+  SHOW_ALL_PLATFORMS_STORAGE_KEY,
+} from "@/lib/platformVisibility";
 import { cn } from "@/lib/utils";
 
 // ─── Nav Item ────────────────────────────────────────────────────────────────
@@ -93,7 +97,9 @@ export function Sidebar() {
 
   const [expanded, setExpanded] = useState(true);
   const [showAllPlatforms, toggleShowAllPlatforms] = useLocalStorageToggle(
-    "skill-link:show-all-platforms"
+    SHOW_ALL_PLATFORMS_STORAGE_KEY,
+    false,
+    LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS
   );
 
   useEffect(() => {
