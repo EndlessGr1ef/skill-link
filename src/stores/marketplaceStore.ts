@@ -541,7 +541,7 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
 
     try {
       cleanupGitHubImportAiSummaryListener(sourcePath);
-      const prompt = lang === "en"
+      const prompt = lang.toLowerCase().startsWith("en")
         ? `Summarize this SKILL.md for import decisions in English. Use 3 short parts: 1) What it does 2) When to import it 3) Dependencies or cautions. Keep it concise.\n\nSkill: ${skillName}\n\n${content}`
         : `请基于下面的 SKILL.md 内容，生成适合导入决策的中文摘要。分成 3 个简短部分：1）做什么 2）什么时候值得导入 3）依赖或注意事项。保持简洁。\n\n技能名：${skillName}\n\n${content}`;
 

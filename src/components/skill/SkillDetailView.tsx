@@ -527,7 +527,7 @@ export function SkillDetailView({
     if (isFileMode && skillContent) {
       setFileIsExplaining(true);
       setFileExplanation(null);
-      invoke<string>("explain_skill", { content: skillContent })
+      invoke<string>("explain_skill", { content: skillContent, lang: i18n.language })
         .then(setFileExplanation)
         .catch((err) => setFileExplanation(`Error: ${String(err)}`))
         .finally(() => setFileIsExplaining(false));

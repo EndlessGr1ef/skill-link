@@ -495,7 +495,8 @@ pub async fn delete_skill_from_central(
     // 1. Uninstall from every linked agent (best-effort).
     let installations = db::get_skill_installations(&state.db, &skill_id).await?;
     for inst in &installations {
-        if let Err(e) = uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await {
+        if let Err(e) = uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await
+        {
             eprintln!(
                 "Warning: failed to uninstall skill '{}' from agent '{}': {}",
                 skill_id, inst.agent_id, e
@@ -508,7 +509,12 @@ pub async fn delete_skill_from_central(
         .canonical_path
         .as_deref()
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| format!("Skill '{}' has no canonical path, cannot safely delete", skill_id))?;
+        .ok_or_else(|| {
+            format!(
+                "Skill '{}' has no canonical path, cannot safely delete",
+                skill_id
+            )
+        })?;
     let canonical = Path::new(canonical_str);
     if canonical.exists() {
         std::fs::remove_dir_all(canonical)

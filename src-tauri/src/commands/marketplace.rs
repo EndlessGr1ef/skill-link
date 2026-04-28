@@ -1190,7 +1190,11 @@ fn format_reqwest_error(e: &reqwest::Error) -> String {
 }
 
 #[tauri::command]
-pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Result<String, String> {
+pub async fn explain_skill(
+    state: State<'_, AppState>,
+    content: String,
+    lang: Option<String>,
+) -> Result<String, String> {
     let api_key = get_provider_setting(&state.db, "ai_api_key")
         .await
         .ok_or_else(|| "请先在设置中配置 AI API Key".to_string())?;
@@ -1211,23 +1215,16 @@ pub async fn explain_skill(state: State<'_, AppState>, content: String) -> Resul
         .map_err(|e| e.to_string())?;
 
     // Truncate content if too long
-    let truncated = if content.len() > 8000 {
-        format!("{}...\n\n(内容已截断)", &content[..8000])
-    } else {
-        content
-    };
+    let truncated = truncate_content(&content);
+    let explanation_lang = lang.as_deref().unwrap_or("zh");
+    let prompt = build_explanation_prompt(&truncated, explanation_lang);
 
     let request = ClaudeRequest {
         model,
         max_tokens: 8192,
         messages: vec![ClaudeMessage {
             role: "user".to_string(),
-            content: format!(
-                "请用中文简洁地解释以下 AI Agent Skill（SKILL.md）的用途、使用场景和关键功能。\
-                分为三部分：1) 一句话总结 2) 适用场景 3) 关键功能点。\
-                控制在 200 字以内。\n\n---\n\n{}",
-                truncated
-            ),
+            content: prompt,
         }],
     };
 
@@ -1433,9 +1430,17 @@ fn truncate_content(content: &str) -> String {
     }
 }
 
+fn normalize_explanation_lang(lang: &str) -> &'static str {
+    if lang.to_ascii_lowercase().starts_with("en") {
+        "en"
+    } else {
+        "zh"
+    }
+}
+
 /// Helper: build the explanation prompt based on language.
 fn build_explanation_prompt(truncated: &str, lang: &str) -> String {
-    match lang {
+    match normalize_explanation_lang(lang) {
         "en" => format!(
             "Please explain in English concisely the purpose, use cases, and key features \
             of the following AI Agent Skill (SKILL.md). \
@@ -1571,7 +1576,9 @@ async fn do_explain_skill_stream(
 
     // Try primary endpoint; on connect-layer failure, try fallback once
     let resp =
-        match send_stream_request(&client, &resolved_url, &api_key, &body, is_anthropic, false).await {
+        match send_stream_request(&client, &resolved_url, &api_key, &body, is_anthropic, false)
+            .await
+        {
             Ok(r) => r,
             Err(err_info) => {
                 // Only retry on connect-layer errors that are retryable
@@ -1784,7 +1791,8 @@ pub async fn get_skill_explanation(
     skill_id: String,
     lang: String,
 ) -> Result<Option<String>, String> {
-    load_cached_skill_explanation(&state.db, &skill_id, &lang).await
+    let normalized_lang = normalize_explanation_lang(&lang);
+    load_cached_skill_explanation(&state.db, &skill_id, normalized_lang).await
 }
 
 /// Stream an AI-generated explanation for a skill, with DB caching.
@@ -1799,8 +1807,12 @@ pub async fn explain_skill_stream(
     content: String,
     lang: String,
 ) -> Result<(), String> {
+    let normalized_lang = normalize_explanation_lang(&lang);
+
     // Check cache first
-    if let Some(explanation) = load_cached_skill_explanation(&state.db, &skill_id, &lang).await? {
+    if let Some(explanation) =
+        load_cached_skill_explanation(&state.db, &skill_id, normalized_lang).await?
+    {
         let _ = app.emit(
             "skill:explanation:chunk",
             ExplanationChunkPayload {
@@ -1818,7 +1830,7 @@ pub async fn explain_skill_stream(
         return Ok(());
     }
 
-    do_explain_skill_stream(&state.db, &app, &skill_id, &content, &lang).await
+    do_explain_skill_stream(&state.db, &app, &skill_id, &content, normalized_lang).await
 }
 
 /// Refresh (re-generate) a skill explanation by deleting the cache and re-streaming.
@@ -1830,10 +1842,12 @@ pub async fn refresh_skill_explanation(
     content: String,
     lang: String,
 ) -> Result<(), String> {
-    // Delete cached explanation
-    delete_cached_skill_explanation(&state.db, &skill_id, &lang).await?;
+    let normalized_lang = normalize_explanation_lang(&lang);
 
-    do_explain_skill_stream(&state.db, &app, &skill_id, &content, &lang).await
+    // Delete cached explanation
+    delete_cached_skill_explanation(&state.db, &skill_id, normalized_lang).await?;
+
+    do_explain_skill_stream(&state.db, &app, &skill_id, &content, normalized_lang).await
 }
 
 // ─── Test AI Connection ─────────────────────────────────────────────────────
@@ -1948,12 +1962,13 @@ pub async fn test_ai_connection(state: State<'_, AppState>) -> Result<String, St
 #[cfg(test)]
 mod tests {
     use super::{
-        add_registry_impl, cache_skill_explanation, classify_reqwest_error,
-        detect_explanation_api_protocol, extract_dir_path, format_reqwest_error,
-        get_fallback_endpoint, load_cached_skill_explanation, marketplace_skills_from_candidates,
-        registry_has_cached_skills, search_marketplace_skills_impl, sync_registry_impl,
-        tree_entries_under_dir, ExplanationApiProtocol, ExplanationErrorKind,
-        RegistryCacheMetadata, RegistrySyncStatus, SyncRegistryOptions,
+        add_registry_impl, build_explanation_prompt, cache_skill_explanation,
+        classify_reqwest_error, detect_explanation_api_protocol, extract_dir_path,
+        format_reqwest_error, get_fallback_endpoint, load_cached_skill_explanation,
+        marketplace_skills_from_candidates, registry_has_cached_skills,
+        search_marketplace_skills_impl, sync_registry_impl, tree_entries_under_dir,
+        ExplanationApiProtocol, ExplanationErrorKind, RegistryCacheMetadata, RegistrySyncStatus,
+        SyncRegistryOptions,
     };
     use crate::commands::github_import::RemoteSkillCandidate;
     use crate::db;
@@ -2134,6 +2149,13 @@ mod tests {
     fn custom_provider_has_no_fallback() {
         let fb = get_fallback_endpoint("custom", "https://my-proxy.example.com/v1/messages");
         assert!(fb.is_none());
+    }
+
+    #[test]
+    fn explanation_prompt_treats_regional_english_as_english() {
+        let prompt = build_explanation_prompt("name: test-skill", "en-US");
+        assert!(prompt.starts_with("Please explain in English"));
+        assert!(!prompt.starts_with("请用中文"));
     }
 
     #[tokio::test]
