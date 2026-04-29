@@ -452,6 +452,7 @@ export function CentralSkillsView() {
         key={skill.id}
         name={skill.name}
         description={skill.description}
+        updatedAt={skill.updated_at}
         onDetail={() => handleOpenDrawer(skill.id)}
         onInstallTo={() => handleInstallClick(skill)}
         onRemove={() => handleDeleteSkill(skill.id)}
@@ -605,6 +606,7 @@ export function CentralSkillsView() {
                 key={skill.id}
                 name={skill.name}
                 description={skill.description}
+                updatedAt={skill.updated_at}
                 onDetail={() => handleOpenDrawer(skill.id)}
                 onInstallTo={() => handleInstallClick(skill)}
                 onRemove={() => handleDeleteSkill(skill.id)}

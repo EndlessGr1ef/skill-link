@@ -11,6 +11,7 @@ import {
   X,
   Loader2,
   Lock,
+  Clock,
 } from "lucide-react";
 import type { MouseEventHandler, Ref } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { InlineConfirmAction } from "@/components/ui/inline-confirm-action";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import type { AgentWithStatus, ClaudeSourceKind } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
 // ─── Platform Toggle Icon (internal) ──────────────────────────────────────────
 
@@ -91,6 +92,9 @@ export interface UnifiedSkillCardProps {
   tags?: { key: string; label: string }[];
   publisher?: string;
 
+  // ── timestamp ──
+  updatedAt?: string;
+
   // ── actions (pass only the ones relevant to the context) ──
   onDetail?: MouseEventHandler<HTMLButtonElement>;
   onInstallTo?: () => void;
@@ -125,6 +129,7 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
     isInstalled,
     tags,
     publisher,
+    updatedAt,
     onDetail,
     onInstallTo,
     onInstallToCentral,
@@ -402,6 +407,13 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
           )}
         </div>
       </div>
+
+      {/* Bottom-right: updated time */}
+      {updatedAt && (
+        <div className="flex justify-end mt-1">
+          <TimeBadge iso={updatedAt} />
+        </div>
+      )}
     </div>
   );
 }
@@ -472,6 +484,23 @@ function ReadOnlyBadge() {
       {t("platform.readOnly", {
         defaultValue: i18n.language.startsWith("zh") ? "只读" : "Read-only",
       })}
+    </span>
+  );
+}
+
+function TimeBadge({ iso }: { iso: string }) {
+  const { i18n } = useTranslation();
+  const relative = formatRelativeTime(iso, i18n.language);
+  if (!relative) return null;
+  const fullDate = new Date(iso).toLocaleString(i18n.language);
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70"
+      title={fullDate}
+    >
+      <Clock className="size-3 shrink-0" />
+      {relative}
     </span>
   );
 }
