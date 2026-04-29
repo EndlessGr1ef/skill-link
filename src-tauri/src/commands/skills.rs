@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use tauri::State;
 
-use crate::db::{self, Collection, DbPool, SkillForAgent};
+use crate::db::{self, Collection, DbPool, SkillForAgent, SkillInstallation};
 use crate::AppState;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -24,6 +24,12 @@ pub struct SkillWithLinks {
     pub scanned_at: String,
     pub created_at: String,
     pub updated_at: String,
+    /// Commit SHA at install time. NULL = unknown / never checked.
+    pub source_ref: Option<String>,
+    /// Path within the source repository (e.g. "skills/my-skill").
+    pub source_path: Option<String>,
+    /// Branch/tag tracked for updates. NULL = track default branch.
+    pub source_branch: Option<String>,
     /// Agent IDs that have an installation record for this skill.
     pub linked_agents: Vec<String>,
 }
@@ -61,6 +67,9 @@ pub struct SkillDetail {
     pub is_read_only: bool,
     pub conflict_group: Option<String>,
     pub conflict_count: i64,
+    pub source_ref: Option<String>,
+    pub source_path: Option<String>,
+    pub source_branch: Option<String>,
     /// All installation records for this skill across agents.
     pub installations: Vec<SkillInstallationDetail>,
     /// Collections this skill currently belongs to.
@@ -322,6 +331,9 @@ async fn get_claude_observation_detail(
         is_read_only: observation.is_read_only,
         conflict_group,
         conflict_count,
+        source_ref: manageable_skill.as_ref().and_then(|s| s.source_ref.clone()),
+        source_path: manageable_skill.as_ref().and_then(|s| s.source_path.clone()),
+        source_branch: manageable_skill.as_ref().and_then(|s| s.source_branch.clone()),
         installations,
         collections,
     }))
@@ -366,6 +378,9 @@ async fn get_skill_detail_with_row_impl(
         is_read_only: false,
         conflict_group: None,
         conflict_count: 0,
+        source_ref: skill.source_ref,
+        source_path: skill.source_path,
+        source_branch: skill.source_branch,
         installations,
         collections,
     })
@@ -419,6 +434,9 @@ pub async fn get_central_skills(state: State<'_, AppState>) -> Result<Vec<SkillW
             scanned_at: skill.scanned_at,
             created_at,
             updated_at,
+            source_ref: skill.source_ref,
+            source_path: skill.source_path,
+            source_branch: skill.source_branch,
             linked_agents,
         });
     }
@@ -452,6 +470,15 @@ pub async fn read_skill_content(
 
     std::fs::read_to_string(&skill.file_path)
         .map_err(|e| format!("Failed to read '{}': {}", skill.file_path, e))
+}
+
+/// Tauri command: get all project-level skill installations for a given agent.
+#[tauri::command]
+pub async fn get_project_skill_installations(
+    state: State<'_, AppState>,
+    agent_id: String,
+) -> Result<Vec<SkillInstallation>, String> {
+    db::get_all_project_installations(&state.db, &agent_id).await
 }
 
 #[tauri::command]
@@ -549,6 +576,9 @@ mod tests {
             },
             content: None,
             scanned_at: Utc::now().to_rfc3339(),
+            source_ref: None,
+            source_path: None,
+            source_branch: None,
         }
     }
 
@@ -601,6 +631,7 @@ mod tests {
                 link_type: "symlink".to_string(),
                 symlink_target: Some("/tmp/central/skill-a".to_string()),
                 created_at: Utc::now().to_rfc3339(),
+                project_path: String::new(),
             },
         )
         .await
@@ -640,6 +671,7 @@ mod tests {
                     link_type: "symlink".to_string(),
                     symlink_target: Some("/tmp/central/central-a".to_string()),
                     created_at: Utc::now().to_rfc3339(),
+                    project_path: String::new(),
                 },
             )
             .await
@@ -734,6 +766,7 @@ mod tests {
                 link_type: "copy".to_string(),
                 symlink_target: None,
                 created_at: now.clone(),
+                project_path: String::new(),
             },
         )
         .await
@@ -810,6 +843,9 @@ mod tests {
             source: None,
             content: None,
             scanned_at: Utc::now().to_rfc3339(),
+            source_ref: None,
+            source_path: None,
+            source_branch: None,
         };
         db::upsert_skill(&pool, &skill).await.unwrap();
 
@@ -831,6 +867,9 @@ mod tests {
             source: None,
             content: None,
             scanned_at: Utc::now().to_rfc3339(),
+            source_ref: None,
+            source_path: None,
+            source_branch: None,
         };
         db::upsert_skill(&pool, &skill).await.unwrap();
 
@@ -859,6 +898,9 @@ mod tests {
                 scanned_at: skill.scanned_at,
                 created_at,
                 updated_at,
+                source_ref: skill.source_ref,
+                source_path: skill.source_path,
+                source_branch: skill.source_branch,
                 linked_agents,
             });
         }
@@ -902,6 +944,7 @@ mod tests {
                 link_type: "symlink".to_string(),
                 symlink_target: Some("/tmp/central/meta-skill".to_string()),
                 created_at: Utc::now().to_rfc3339(),
+                project_path: String::new(),
             },
         )
         .await
@@ -1069,6 +1112,7 @@ mod tests {
                 link_type: "copy".to_string(),
                 symlink_target: None,
                 created_at: Utc::now().to_rfc3339(),
+                project_path: String::new(),
             },
         )
         .await
@@ -1163,6 +1207,7 @@ mod tests {
                 link_type: "copy".to_string(),
                 symlink_target: None,
                 created_at: Utc::now().to_rfc3339(),
+                project_path: String::new(),
             },
         )
         .await
@@ -1237,6 +1282,7 @@ mod tests {
                 link_type: "copy".to_string(),
                 symlink_target: None,
                 created_at: Utc::now().to_rfc3339(),
+                project_path: String::new(),
             },
         )
         .await

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
-import { AgentWithStatus, BatchInstallResult, SkillWithLinks } from "@/types";
+import { AgentWithStatus, BatchInstallResult, SkillUpdateStatus, SkillWithLinks, UpdateStatus } from "@/types";
 
 export const BROWSER_FIXTURE_AGENTS: AgentWithStatus[] = [
   {
@@ -60,6 +60,14 @@ interface CentralSkillsState {
   togglingAgentId: string | null;
   error: string | null;
 
+  // ── Update detection ──
+  /** Per-skill update status (keyed by skill_id). */
+  updateStatuses: Record<string, UpdateStatus>;
+  /** True while check_skill_updates is in flight. */
+  isCheckingUpdates: boolean;
+  /** Skill ID currently being updated (null = idle). */
+  updatingSkillId: string | null;
+
   // Actions
   loadCentralSkills: () => Promise<void>;
   installSkill: (
@@ -70,6 +78,8 @@ interface CentralSkillsState {
   importToCentral: (skillId: string) => Promise<void>;
   togglePlatformLink: (skillId: string, agentId: string) => Promise<void>;
   deleteSkill: (skillId: string) => Promise<void>;
+  checkUpdates: (skillIds?: string[]) => Promise<SkillUpdateStatus[]>;
+  updateSkill: (skillId: string) => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -82,6 +92,9 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
   isDeleting: false,
   togglingAgentId: null,
   error: null,
+  updateStatuses: {},
+  isCheckingUpdates: false,
+  updatingSkillId: null,
 
   /**
    * Load all Central Skills with per-platform link status, along with the
@@ -185,6 +198,51 @@ export const useCentralSkillsStore = create<CentralSkillsState>((set, get) => ({
       set({ skills, isDeleting: false });
     } catch (err) {
       set({ error: String(err), isDeleting: false });
+      throw err;
+    }
+  },
+
+  /**
+   * Check for updates on all (or specified) central skills.
+   * Returns the raw results and updates `updateStatuses` in state.
+   */
+  checkUpdates: async (skillIds) => {
+    set({ isCheckingUpdates: true, error: null });
+    try {
+      const results = await invoke<SkillUpdateStatus[]>("check_skill_updates", {
+        skillIds: skillIds ?? [],
+      });
+      const map: Record<string, UpdateStatus> = {};
+      for (const r of results) {
+        map[r.skill_id] = r.update_status;
+      }
+      set((state) => ({
+        updateStatuses: { ...state.updateStatuses, ...map },
+        isCheckingUpdates: false,
+      }));
+      return results;
+    } catch (err) {
+      set({ error: String(err), isCheckingUpdates: false });
+      throw err;
+    }
+  },
+
+  /**
+   * Update a single skill from its GitHub source.
+   * Refreshes the skill list after success.
+   */
+  updateSkill: async (skillId) => {
+    set({ updatingSkillId: skillId, error: null });
+    try {
+      await invoke("update_skill", { skillId });
+      const skills = await invoke<SkillWithLinks[]>("get_central_skills");
+      // Clear the update status for this skill (it's now up-to-date)
+      set((state) => {
+        const { [skillId]: _, ...rest } = state.updateStatuses;
+        return { skills, updateStatuses: rest, updatingSkillId: null };
+      });
+    } catch (err) {
+      set({ error: String(err), updatingSkillId: null });
       throw err;
     }
   },

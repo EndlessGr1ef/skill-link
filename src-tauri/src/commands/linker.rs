@@ -278,6 +278,7 @@ pub async fn install_skill_to_agent_impl(
         link_type: "symlink".to_string(),
         symlink_target: Some(canonical_dir.to_string_lossy().into_owned()),
         created_at: chrono::Utc::now().to_rfc3339(),
+        project_path: String::new(),
     };
     db::upsert_skill_installation(pool, &installation).await?;
 
@@ -381,6 +382,7 @@ pub async fn install_skill_to_agent_copy_impl(
         link_type: "copy".to_string(),
         symlink_target: None,
         created_at: chrono::Utc::now().to_rfc3339(),
+        project_path: String::new(),
     };
     db::upsert_skill_installation(pool, &installation).await?;
 
@@ -446,7 +448,143 @@ pub async fn uninstall_skill_from_agent_impl(
     }
 
     // 5. Remove the installation record from the database.
-    db::delete_skill_installation(pool, skill_id, agent_id).await?;
+    db::delete_skill_installation(pool, skill_id, agent_id, "").await?;
+
+    Ok(())
+}
+
+// ─── Project-Level Install/Uninstall ──────────────────────────────────────────
+
+/// Install a skill to a specific project for a given agent.
+///
+/// Creates a symlink at `<project_path>/<agent.project_skills_dir>/<skill_id>`
+/// pointing to the canonical skill directory in the central store.
+pub async fn install_skill_to_project_impl(
+    pool: &DbPool,
+    skill_id: &str,
+    agent_id: &str,
+    project_path: &str,
+) -> Result<InstallResult, String> {
+    // 1. Validate inputs.
+    if agent_id == "central" {
+        return Err("Cannot install a skill to the central agent itself".to_string());
+    }
+    if project_path.is_empty() {
+        return Err("Project path must not be empty".to_string());
+    }
+
+    // 2. Look up the target agent and its project_skills_dir.
+    let agent = db::get_agent_by_id(pool, agent_id)
+        .await?
+        .ok_or_else(|| format!("Agent '{}' not found", agent_id))?;
+
+    let proj_skills_rel = agent
+        .project_skills_dir
+        .as_deref()
+        .ok_or_else(|| format!("Agent '{}' does not support project-level skills", agent_id))?;
+
+    // 3. Look up the central agent for the canonical root.
+    let central = db::get_agent_by_id(pool, "central")
+        .await?
+        .ok_or_else(|| "Central agent not found in database".to_string())?;
+
+    let canonical_dir = PathBuf::from(&central.global_skills_dir).join(skill_id);
+
+    // 4. Ensure the skill exists in central (auto-centralize if needed).
+    ensure_centralized(pool, skill_id, &canonical_dir).await?;
+
+    // 5. Compute symlink location.
+    let project_skills_dir = PathBuf::from(project_path).join(proj_skills_rel);
+    let symlink_path = project_skills_dir.join(skill_id);
+
+    // 6. Ensure the project skills directory exists.
+    std::fs::create_dir_all(&project_skills_dir)
+        .map_err(|e| format!("Failed to create project skills directory '{}': {}", project_skills_dir.display(), e))?;
+
+    // 7. Handle any existing entry at the symlink path.
+    match std::fs::symlink_metadata(&symlink_path) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            std::fs::remove_file(&symlink_path)
+                .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+        }
+        Ok(meta) if meta.is_dir() => {
+            return Err(format!(
+                "A real directory already exists at '{}'. Refusing to overwrite.",
+                symlink_path.display()
+            ));
+        }
+        Ok(_) => {
+            return Err(format!(
+                "A file already exists at '{}'. Refusing to overwrite.",
+                symlink_path.display()
+            ));
+        }
+        Err(_) => {} // Path does not exist — proceed.
+    }
+
+    // 8. Create the symlink.
+    let relative_target = symlink_target_path(&project_skills_dir, &canonical_dir);
+    create_symlink(&relative_target, &symlink_path)?;
+
+    // 9. Persist the installation record.
+    let installation = SkillInstallation {
+        skill_id: skill_id.to_string(),
+        agent_id: agent_id.to_string(),
+        installed_path: symlink_path.to_string_lossy().into_owned(),
+        link_type: "symlink".to_string(),
+        symlink_target: Some(canonical_dir.to_string_lossy().into_owned()),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        project_path: project_path.to_string(),
+    };
+    db::upsert_skill_installation(pool, &installation).await?;
+
+    Ok(InstallResult {
+        symlink_path: symlink_path.to_string_lossy().into_owned(),
+    })
+}
+
+/// Uninstall a skill from a specific project for a given agent.
+///
+/// Removes the symlink at `<project_path>/<agent.project_skills_dir>/<skill_id>`
+/// and deletes the corresponding `skill_installations` record.
+pub async fn uninstall_skill_from_project_impl(
+    pool: &DbPool,
+    skill_id: &str,
+    agent_id: &str,
+    project_path: &str,
+) -> Result<(), String> {
+    // 1. Look up the agent.
+    let agent = db::get_agent_by_id(pool, agent_id)
+        .await?
+        .ok_or_else(|| format!("Agent '{}' not found", agent_id))?;
+
+    let proj_skills_rel = agent
+        .project_skills_dir
+        .as_deref()
+        .ok_or_else(|| format!("Agent '{}' does not support project-level skills", agent_id))?;
+
+    // 2. Compute the expected install location.
+    let install_path = PathBuf::from(project_path).join(proj_skills_rel).join(skill_id);
+
+    // 3. Inspect and remove the entry.
+    match std::fs::symlink_metadata(&install_path) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            std::fs::remove_file(&install_path)
+                .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+        }
+        Ok(_) => {
+            return Err(format!(
+                "Path '{}' exists but is not a symlink. Refusing to delete.",
+                install_path.display()
+            ));
+        }
+        Err(_) => {
+            // Path doesn't exist — still clean up the DB record.
+        }
+    }
+
+    // 4. Remove the installation record.
+    db::delete_skill_installation(pool, skill_id, agent_id, project_path).await?;
 
     Ok(())
 }
@@ -478,6 +616,28 @@ pub async fn uninstall_skill_from_agent(
     uninstall_skill_from_agent_impl(&state.db, &skill_id, &agent_id).await
 }
 
+/// Tauri command: install a skill to a specific project for an agent.
+#[tauri::command]
+pub async fn install_skill_to_project(
+    state: State<'_, AppState>,
+    skill_id: String,
+    agent_id: String,
+    project_path: String,
+) -> Result<InstallResult, String> {
+    install_skill_to_project_impl(&state.db, &skill_id, &agent_id, &project_path).await
+}
+
+/// Tauri command: uninstall a skill from a specific project for an agent.
+#[tauri::command]
+pub async fn uninstall_skill_from_project(
+    state: State<'_, AppState>,
+    skill_id: String,
+    agent_id: String,
+    project_path: String,
+) -> Result<(), String> {
+    uninstall_skill_from_project_impl(&state.db, &skill_id, &agent_id, &project_path).await
+}
+
 /// Delete a central skill entirely: uninstall from all agents, remove disk
 /// files from the central directory, and purge all DB records.
 ///
@@ -492,14 +652,24 @@ pub async fn delete_skill_from_central(
         .await?
         .ok_or_else(|| format!("Skill '{}' not found", skill_id))?;
 
-    // 1. Uninstall from every linked agent (best-effort).
+    // 1. Uninstall from every linked agent (best-effort) — both global and project installs.
     let installations = db::get_skill_installations(&state.db, &skill_id).await?;
     for inst in &installations {
-        if let Err(e) = uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await
-        {
+        let result = if inst.project_path.is_empty() {
+            uninstall_skill_from_agent_impl(&state.db, &skill_id, &inst.agent_id).await
+        } else {
+            uninstall_skill_from_project_impl(
+                &state.db,
+                &skill_id,
+                &inst.agent_id,
+                &inst.project_path,
+            )
+            .await
+        };
+        if let Err(e) = result {
             eprintln!(
-                "Warning: failed to uninstall skill '{}' from agent '{}': {}",
-                skill_id, inst.agent_id, e
+                "Warning: failed to uninstall skill '{}' from agent '{}' (project='{}'): {}",
+                skill_id, inst.agent_id, inst.project_path, e
             );
         }
     }
@@ -571,6 +741,9 @@ pub async fn import_skill_to_central_impl(
         source: Some("copy".to_string()),
         content: None,
         scanned_at: now,
+        source_ref: None,
+        source_path: None,
+        source_branch: None,
     };
     db::upsert_skill(pool, &db_skill).await?;
 
@@ -990,6 +1163,7 @@ mod tests {
             link_type: "symlink".to_string(),
             symlink_target: None,
             created_at: chrono::Utc::now().to_rfc3339(),
+            project_path: String::new(),
         };
         db::upsert_skill_installation(&pool, &installation)
             .await

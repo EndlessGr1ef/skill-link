@@ -18,9 +18,9 @@ import { useDiscoverStore } from "../stores/discoverStore";
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const mockScanRoots: ScanRoot[] = [
-  { path: "/home/user/Documents", label: "Documents", exists: true, enabled: true },
-  { path: "/home/user/projects", label: "projects", exists: true, enabled: true },
-  { path: "/home/user/nonexistent", label: "nonexistent", exists: false, enabled: false },
+  { path: "/home/user/Documents", label: "Documents", exists: true, enabled: true, is_custom: false },
+  { path: "/home/user/projects", label: "projects", exists: true, enabled: true, is_custom: false },
+  { path: "/home/user/nonexistent", label: "nonexistent", exists: false, enabled: false, is_custom: false },
 ];
 
 const mockDiscoveredProjects: DiscoveredProject[] = [

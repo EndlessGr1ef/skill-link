@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
-import { AgentWithStatus, ScanResult } from "@/types";
+import { AgentWithStatus, ScanResult, SkillInstallation } from "@/types";
 
 const BROWSER_FIXTURE_AGENTS: AgentWithStatus[] = [
   {
@@ -47,6 +47,8 @@ const BROWSER_FIXTURE_COUNTS: ScanResult = {
 interface PlatformState {
   agents: AgentWithStatus[];
   skillsByAgent: Record<string, number>;
+  /** Project-level installations keyed by agent_id */
+  projectInstallations: Record<string, SkillInstallation[]>;
   isLoading: boolean;
   isRefreshing: boolean;
   scanGeneration?: number;
@@ -56,13 +58,17 @@ interface PlatformState {
   initialize: () => Promise<void>;
   rescan: () => Promise<void>;
   refreshCounts: () => Promise<void>;
+  loadProjectInstallations: (agentId: string) => Promise<void>;
+  installSkillToProject: (skillId: string, agentId: string, projectPath: string) => Promise<void>;
+  uninstallSkillFromProject: (skillId: string, agentId: string, projectPath: string) => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
-export const usePlatformStore = create<PlatformState>((set) => ({
+export const usePlatformStore = create<PlatformState>((set, get) => ({
   agents: [],
   skillsByAgent: {},
+  projectInstallations: {},
   isLoading: false,
   isRefreshing: false,
   scanGeneration: 0,
@@ -157,5 +163,43 @@ export const usePlatformStore = create<PlatformState>((set) => ({
     } catch (err) {
       set({ error: String(err), isRefreshing: false });
     }
+  },
+
+  loadProjectInstallations: async (agentId: string) => {
+    if (!isTauriRuntime()) return;
+    try {
+      const installations = await invoke<SkillInstallation[]>(
+        "get_project_skill_installations",
+        { agentId },
+      );
+      set((state) => ({
+        projectInstallations: {
+          ...state.projectInstallations,
+          [agentId]: installations,
+        },
+      }));
+    } catch (err) {
+      console.error("Failed to load project installations:", err);
+    }
+  },
+
+  installSkillToProject: async (skillId: string, agentId: string, projectPath: string) => {
+    if (!isTauriRuntime()) return;
+    await invoke("install_skill_to_project", { skillId, agentId, projectPath });
+    // Refresh project installations and skill counts
+    await Promise.all([
+      get().loadProjectInstallations(agentId),
+      get().refreshCounts(),
+    ]);
+  },
+
+  uninstallSkillFromProject: async (skillId: string, agentId: string, projectPath: string) => {
+    if (!isTauriRuntime()) return;
+    await invoke("uninstall_skill_from_project", { skillId, agentId, projectPath });
+    // Refresh project installations and skill counts
+    await Promise.all([
+      get().loadProjectInstallations(agentId),
+      get().refreshCounts(),
+    ]);
   },
 }));

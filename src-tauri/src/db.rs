@@ -24,6 +24,12 @@ pub struct Skill {
     pub source: Option<String>,
     pub content: Option<String>,
     pub scanned_at: String,
+    /// Commit SHA at install time. NULL = unknown / never checked.
+    pub source_ref: Option<String>,
+    /// Path within the source repository (e.g. "skills/my-skill" or ".").
+    pub source_path: Option<String>,
+    /// Branch/tag tracked for updates. NULL = track default branch.
+    pub source_branch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -35,6 +41,8 @@ pub struct SkillInstallation {
     pub symlink_target: Option<String>,
     /// ISO 8601 timestamp of when the skill was first installed.
     pub created_at: String,
+    /// Project path for project-level installations. Empty string for global installs.
+    pub project_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -139,7 +147,8 @@ pub async fn init_database(pool: &DbPool) -> Result<(), String> {
             link_type      TEXT NOT NULL,
             symlink_target TEXT,
             created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-            PRIMARY KEY (skill_id, agent_id)
+            project_path   TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (skill_id, agent_id, project_path)
         )",
     )
     .execute(pool)
@@ -202,6 +211,89 @@ pub async fn init_database(pool: &DbPool) -> Result<(), String> {
         .execute(pool)
         .await
         .map_err(|e| e.to_string())?;
+    }
+
+    // Migration: recreate skill_installations with new PK (skill_id, agent_id, project_path).
+    // Old PK was (skill_id, agent_id); new PK includes project_path so the same skill
+    // can be installed both globally and per-project for the same agent.
+    // Global installs use project_path = '' (empty string).
+    let columns = sqlx::query("PRAGMA table_info(skill_installations)")
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let has_project_path = columns.iter().any(|row| {
+        row.try_get::<String, _>("name")
+            .map(|name| name == "project_path")
+            .unwrap_or(false)
+    });
+
+    if !has_project_path {
+        // Step 1: add the column (nullable first for migration).
+        sqlx::query("ALTER TABLE skill_installations ADD COLUMN project_path TEXT")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // Step 2: set empty string for all existing (global) rows.
+        sqlx::query("UPDATE skill_installations SET project_path = '' WHERE project_path IS NULL")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Check if the PK needs updating (old PK = 2 columns, new PK = 3 columns).
+    let pk_columns = sqlx::query("PRAGMA table_info(skill_installations)")
+        .fetch_all(pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .iter()
+        .filter(|row| {
+            row.try_get::<i32, _>("pk")
+                .map(|pk| pk > 0)
+                .unwrap_or(false)
+        })
+        .count();
+
+    if pk_columns < 3 {
+        // Recreate table with the new PK.
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS skill_installations_new (
+                skill_id       TEXT NOT NULL,
+                agent_id       TEXT NOT NULL,
+                installed_path TEXT NOT NULL,
+                link_type      TEXT NOT NULL,
+                symlink_target TEXT,
+                created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+                project_path   TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (skill_id, agent_id, project_path)
+            )",
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        // Copy data, mapping NULL project_path to ''.
+        sqlx::query(
+            "INSERT INTO skill_installations_new
+                (skill_id, agent_id, installed_path, link_type, symlink_target, created_at, project_path)
+             SELECT skill_id, agent_id, installed_path, link_type, symlink_target, created_at,
+                    COALESCE(project_path, '')
+             FROM skill_installations",
+        )
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        sqlx::query("DROP TABLE skill_installations")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        sqlx::query("ALTER TABLE skill_installations_new RENAME TO skill_installations")
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
     }
 
     // agents table
@@ -409,6 +501,44 @@ pub async fn init_database(pool: &DbPool) -> Result<(), String> {
     )
     .await?;
 
+    // ── Migration: source tracking columns for skills table ──
+    ensure_column(
+        pool,
+        "skills",
+        "source_ref",
+        "ALTER TABLE skills ADD COLUMN source_ref TEXT",
+    )
+    .await?;
+    ensure_column(
+        pool,
+        "skills",
+        "source_path",
+        "ALTER TABLE skills ADD COLUMN source_path TEXT",
+    )
+    .await?;
+    ensure_column(
+        pool,
+        "skills",
+        "source_branch",
+        "ALTER TABLE skills ADD COLUMN source_branch TEXT",
+    )
+    .await?;
+
+    // ── update_check_cache table ──
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS update_check_cache (
+            skill_id      TEXT PRIMARY KEY,
+            checked_at    TEXT NOT NULL,
+            latest_sha    TEXT,
+            has_update    BOOLEAN,
+            error_message TEXT,
+            FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+        )",
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
     // Seed built-in agents (INSERT OR IGNORE so repeated init is safe)
     seed_builtin_agents(pool).await?;
 
@@ -584,6 +714,9 @@ async fn ensure_column(
 pub fn builtin_agents() -> Vec<Agent> {
     let home = resolve_home_dir();
     let in_home = |relative: &str| path_to_string(&home.join(relative));
+    // project_skills_dir is the same relative path used inside project directories.
+    // e.g. ".claude/skills" means ~/my-project/.claude/skills is the project skill dir.
+    let proj = |relative: &str| Some(relative.to_string());
     vec![
         // ── Coding platforms ─────────────────────────────────────────────────
         Agent {
@@ -591,7 +724,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Claude Code".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".claude/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".claude/skills"),
             icon_name: Some("claude".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -602,7 +735,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Codex CLI".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".agents/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".agents/skills"),
             icon_name: Some("codex".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -613,7 +746,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Cursor".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".cursor/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".cursor/skills"),
             icon_name: Some("cursor".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -624,7 +757,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Gemini CLI".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".gemini/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".gemini/skills"),
             icon_name: Some("gemini".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -635,7 +768,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Trae".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".trae/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".trae/skills"),
             icon_name: Some("trae".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -646,7 +779,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Factory Droid".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".factory/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".factory/skills"),
             icon_name: Some("factory".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -657,7 +790,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Junie".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".junie/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".junie/skills"),
             icon_name: Some("junie".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -668,7 +801,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Qwen".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".qwen/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".qwen/skills"),
             icon_name: Some("qwen".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -679,7 +812,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Trae CN".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".trae-cn/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".trae-cn/skills"),
             icon_name: Some("trae-cn".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -690,7 +823,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Windsurf".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".windsurf/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".windsurf/skills"),
             icon_name: Some("windsurf".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -701,7 +834,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Qoder".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".qoder/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".qoder/skills"),
             icon_name: Some("qoder".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -712,7 +845,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Augment".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".augment/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".augment/skills"),
             icon_name: Some("augment".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -723,7 +856,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "OpenCode".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".opencode/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".opencode/skills"),
             icon_name: Some("opencode".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -734,7 +867,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "KiloCode".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".kilocode/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".kilocode/skills"),
             icon_name: Some("kilocode".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -745,7 +878,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "OB1".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".ob1/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".ob1/skills"),
             icon_name: Some("ob1".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -756,7 +889,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Amp".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".amp/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".amp/skills"),
             icon_name: Some("amp".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -767,7 +900,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Kiro".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".kiro/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".kiro/skills"),
             icon_name: Some("kiro".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -778,7 +911,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "CodeBuddy".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".codebuddy/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".codebuddy/skills"),
             icon_name: Some("codebuddy".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -800,7 +933,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Copilot".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".copilot/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".copilot/skills"),
             icon_name: Some("copilot".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -811,7 +944,7 @@ pub fn builtin_agents() -> Vec<Agent> {
             display_name: "Aider".to_string(),
             category: "coding".to_string(),
             global_skills_dir: in_home(".aider/skills"),
-            project_skills_dir: None,
+            project_skills_dir: proj(".aider/skills"),
             icon_name: Some("aider".to_string()),
             is_detected: false,
             is_builtin: true,
@@ -900,8 +1033,9 @@ pub fn builtin_agents() -> Vec<Agent> {
 pub async fn upsert_skill(pool: &DbPool, skill: &Skill) -> Result<(), String> {
     sqlx::query(
         "INSERT INTO skills
-         (id, name, description, file_path, canonical_path, is_central, source, content, scanned_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (id, name, description, file_path, canonical_path, is_central, source, content, scanned_at,
+          source_ref, source_path, source_branch)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            name           = excluded.name,
            description    = excluded.description,
@@ -910,7 +1044,10 @@ pub async fn upsert_skill(pool: &DbPool, skill: &Skill) -> Result<(), String> {
            is_central     = MAX(skills.is_central, excluded.is_central),
            source         = excluded.source,
            content        = excluded.content,
-           scanned_at     = excluded.scanned_at",
+           scanned_at     = excluded.scanned_at,
+           source_ref     = COALESCE(excluded.source_ref, skills.source_ref),
+           source_path    = COALESCE(excluded.source_path, skills.source_path),
+           source_branch  = COALESCE(excluded.source_branch, skills.source_branch)",
     )
     .bind(&skill.id)
     .bind(&skill.name)
@@ -921,6 +1058,9 @@ pub async fn upsert_skill(pool: &DbPool, skill: &Skill) -> Result<(), String> {
     .bind(&skill.source)
     .bind(&skill.content)
     .bind(&skill.scanned_at)
+    .bind(&skill.source_ref)
+    .bind(&skill.source_path)
+    .bind(&skill.source_branch)
     .execute(pool)
     .await
     .map(|_| ())
@@ -938,6 +1078,9 @@ fn observation_to_skill(observation: AgentSkillObservation) -> Skill {
         source: Some(observation.link_type),
         content: None,
         scanned_at: observation.scanned_at,
+        source_ref: None,
+        source_path: None,
+        source_branch: None,
     }
 }
 
@@ -1160,6 +1303,11 @@ pub async fn delete_skill(pool: &DbPool, skill_id: &str) -> Result<(), String> {
         .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
+    sqlx::query("DELETE FROM update_check_cache WHERE skill_id = ?")
+        .bind(skill_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
     sqlx::query("DELETE FROM skills WHERE id = ?")
         .bind(skill_id)
         .execute(&mut *tx)
@@ -1168,23 +1316,115 @@ pub async fn delete_skill(pool: &DbPool, skill_id: &str) -> Result<(), String> {
     tx.commit().await.map_err(|e| e.to_string())
 }
 
+// ─── Source Tracking ────────────────────────────────────────────────────────
+
+/// Parse the `source` field into (kind, repo) where kind is "github" or "skills.sh"
+/// and repo is "owner/repo". Returns None for non-remote sources.
+pub fn parse_source(source: &Option<String>) -> Option<(&str, &str)> {
+    let s = source.as_ref()?;
+    if let Some(repo) = s.strip_prefix("github:") {
+        Some(("github", repo))
+    } else if let Some(repo) = s.strip_prefix("skills.sh:") {
+        Some(("skills.sh", repo))
+    } else {
+        None
+    }
+}
+
+/// Update the source_ref (commit SHA) for a skill after an update.
+pub async fn update_skill_source_ref(
+    pool: &DbPool,
+    skill_id: &str,
+    source_ref: &str,
+    name: &str,
+    description: Option<&str>,
+) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE skills SET source_ref = ?, name = ?, description = ? WHERE id = ?",
+    )
+    .bind(source_ref)
+    .bind(name)
+    .bind(description)
+    .bind(skill_id)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+// ─── Update Check Cache ─────────────────────────────────────────────────────
+
+pub struct UpdateCheckCacheEntry {
+    pub skill_id: String,
+    pub checked_at: String,
+    pub latest_sha: Option<String>,
+    pub has_update: Option<bool>,
+    pub error_message: Option<String>,
+}
+
+pub async fn get_update_check_cache(
+    pool: &DbPool,
+    skill_id: &str,
+) -> Result<Option<UpdateCheckCacheEntry>, String> {
+    let row = sqlx::query("SELECT * FROM update_check_cache WHERE skill_id = ?")
+        .bind(skill_id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(row.map(|r| {
+        use sqlx::Row;
+        UpdateCheckCacheEntry {
+            skill_id: r.get("skill_id"),
+            checked_at: r.get("checked_at"),
+            latest_sha: r.get("latest_sha"),
+            has_update: r.get("has_update"),
+            error_message: r.get("error_message"),
+        }
+    }))
+}
+
+pub async fn upsert_update_check_cache(
+    pool: &DbPool,
+    entry: &UpdateCheckCacheEntry,
+) -> Result<(), String> {
+    sqlx::query(
+        "INSERT INTO update_check_cache (skill_id, checked_at, latest_sha, has_update, error_message)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(skill_id) DO UPDATE SET
+           checked_at    = excluded.checked_at,
+           latest_sha    = excluded.latest_sha,
+           has_update    = excluded.has_update,
+           error_message = excluded.error_message",
+    )
+    .bind(&entry.skill_id)
+    .bind(&entry.checked_at)
+    .bind(&entry.latest_sha)
+    .bind(entry.has_update)
+    .bind(&entry.error_message)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
 // ─── Skill Installations ──────────────────────────────────────────────────────
 
 /// Insert or update a skill installation record.
 ///
-/// On conflict (same skill_id + agent_id), updates the mutable fields
-/// (installed_path, link_type, symlink_target) but **preserves the original
-/// `created_at`** so the installation timestamp reflects when the skill was
-/// first installed, not when it was last re-scanned.
+/// On conflict (same skill_id + agent_id + project_path), updates the mutable fields
+/// (installed_path, link_type, symlink_target) but **preserves the original `created_at`**
+/// so the installation timestamp reflects when the skill was first installed, not when
+/// it was last re-scanned.
 pub async fn upsert_skill_installation(
     pool: &DbPool,
     installation: &SkillInstallation,
 ) -> Result<(), String> {
     sqlx::query(
         "INSERT INTO skill_installations
-         (skill_id, agent_id, installed_path, link_type, symlink_target, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(skill_id, agent_id) DO UPDATE SET
+         (skill_id, agent_id, installed_path, link_type, symlink_target, created_at, project_path)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(skill_id, agent_id, project_path) DO UPDATE SET
            installed_path = excluded.installed_path,
            link_type      = excluded.link_type,
            symlink_target = excluded.symlink_target",
@@ -1195,6 +1435,7 @@ pub async fn upsert_skill_installation(
     .bind(&installation.link_type)
     .bind(&installation.symlink_target)
     .bind(&installation.created_at)
+    .bind(&installation.project_path)
     .execute(pool)
     .await
     .map(|_| ())
@@ -1202,14 +1443,17 @@ pub async fn upsert_skill_installation(
 }
 
 /// Delete an installation record for a specific skill+agent pair.
+/// For global installs, pass project_path = "".
 pub async fn delete_skill_installation(
     pool: &DbPool,
     skill_id: &str,
     agent_id: &str,
+    project_path: &str,
 ) -> Result<(), String> {
-    sqlx::query("DELETE FROM skill_installations WHERE skill_id = ? AND agent_id = ?")
+    sqlx::query("DELETE FROM skill_installations WHERE skill_id = ? AND agent_id = ? AND project_path = ?")
         .bind(skill_id)
         .bind(agent_id)
+        .bind(project_path)
         .execute(pool)
         .await
         .map(|_| ())
@@ -1345,6 +1589,47 @@ pub async fn get_skill_installations(
         .fetch_all(pool)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Retrieve project-level installation records for a given agent and project path.
+pub async fn get_project_skill_installations(
+    pool: &DbPool,
+    agent_id: &str,
+    project_path: &str,
+) -> Result<Vec<SkillInstallation>, String> {
+    sqlx::query_as::<_, SkillInstallation>(
+        "SELECT * FROM skill_installations WHERE agent_id = ? AND project_path = ?",
+    )
+    .bind(agent_id)
+    .bind(project_path)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Retrieve all project-level installations for a given agent (project_path != '').
+pub async fn get_all_project_installations(
+    pool: &DbPool,
+    agent_id: &str,
+) -> Result<Vec<SkillInstallation>, String> {
+    sqlx::query_as::<_, SkillInstallation>(
+        "SELECT * FROM skill_installations WHERE agent_id = ? AND project_path != ''",
+    )
+    .bind(agent_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Delete a project-level skill installation record.
+/// Equivalent to `delete_skill_installation` — kept for API clarity.
+pub async fn delete_project_skill_installation(
+    pool: &DbPool,
+    skill_id: &str,
+    agent_id: &str,
+    project_path: &str,
+) -> Result<(), String> {
+    delete_skill_installation(pool, skill_id, agent_id, project_path).await
 }
 
 // ─── Agents ───────────────────────────────────────────────────────────────────
@@ -1928,6 +2213,9 @@ mod tests {
             source: None,
             content: Some("# Test Skill\n\nContent here.".to_string()),
             scanned_at: Utc::now().to_rfc3339(),
+            source_ref: None,
+            source_path: None,
+            source_branch: None,
         }
     }
 
@@ -2004,6 +2292,7 @@ mod tests {
                 None
             },
             created_at: Utc::now().to_rfc3339(),
+            project_path: String::new(),
         }
     }
 
@@ -2031,7 +2320,7 @@ mod tests {
             .await
             .unwrap();
 
-        delete_skill_installation(&pool, "del-skill", "cursor")
+        delete_skill_installation(&pool, "del-skill", "cursor", "")
             .await
             .unwrap();
 

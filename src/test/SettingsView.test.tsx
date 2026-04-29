@@ -131,6 +131,10 @@ function setupMocks({
       initialize: vi.fn(),
       rescan,
       refreshCounts,
+      projectInstallations: {},
+      loadProjectInstallations: vi.fn(),
+      installSkillToProject: vi.fn(),
+      uninstallSkillFromProject: vi.fn(),
     })
   );
 

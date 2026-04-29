@@ -139,6 +139,10 @@ function buildPlatformStoreState(overrides = {}) {
     initialize: vi.fn(),
     rescan: vi.fn(),
     refreshCounts: vi.fn(),
+    projectInstallations: {},
+    loadProjectInstallations: vi.fn(),
+    installSkillToProject: vi.fn(),
+    uninstallSkillFromProject: vi.fn(),
     ...overrides,
   };
 }

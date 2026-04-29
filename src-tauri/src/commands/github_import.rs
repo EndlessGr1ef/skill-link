@@ -383,6 +383,9 @@ pub async fn install_github_skill_directory(
         )),
         content: None,
         scanned_at: Utc::now().to_rfc3339(),
+        source_ref: None,
+        source_path: Some(source_path),
+        source_branch: Some(raw_path.repo.branch.clone()),
     };
     db::upsert_skill(&state.db, &db_skill).await?;
 
@@ -619,6 +622,9 @@ async fn import_github_repo_skills_impl(
             source: Some(format!("github:{}/{}", repo.owner, repo.repo)),
             content: None,
             scanned_at: Utc::now().to_rfc3339(),
+            source_ref: None,
+            source_path: Some(op.candidate.source_path.clone()),
+            source_branch: Some(repo.branch.clone()),
         };
         db::upsert_skill(pool, &db_skill).await?;
 
@@ -777,7 +783,7 @@ pub(crate) async fn github_direct_auth_from_settings(
         .filter(|token| !token.is_empty()))
 }
 
-fn github_client() -> Result<reqwest::Client, String> {
+pub(crate) fn github_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent("skill-link/0.9.1")
         .build()
@@ -1905,6 +1911,9 @@ mod tests {
                 source: Some("local".to_string()),
                 content: None,
                 scanned_at: Utc::now().to_rfc3339(),
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             },
         )
         .await
@@ -1979,6 +1988,9 @@ mod tests {
                 source: Some("local".to_string()),
                 content: None,
                 scanned_at: Utc::now().to_rfc3339(),
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             },
         )
         .await
@@ -1995,6 +2007,9 @@ mod tests {
                 source: Some("local".to_string()),
                 content: None,
                 scanned_at: Utc::now().to_rfc3339(),
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             },
         )
         .await
@@ -2011,6 +2026,9 @@ mod tests {
                 source: Some("local".to_string()),
                 content: None,
                 scanned_at: Utc::now().to_rfc3339(),
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             },
         )
         .await

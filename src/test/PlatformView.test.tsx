@@ -22,6 +22,14 @@ vi.mock("../stores/centralSkillsStore", () => ({
   useCentralSkillsStore: vi.fn(),
 }));
 
+vi.mock("../stores/discoverStore", () => ({
+  useDiscoverStore: vi.fn(),
+}));
+
+vi.mock("../components/platform/ProjectInstallDialog", () => ({
+  ProjectInstallDialog: () => null,
+}));
+
 vi.mock("../components/skill/SkillDetailDrawer", () => ({
   SkillDetailDrawer: ({
     open,
@@ -58,6 +66,7 @@ vi.mock("../components/skill/SkillDetailDrawer", () => ({
 import { usePlatformStore } from "../stores/platformStore";
 import { useSkillStore } from "../stores/skillStore";
 import { useCentralSkillsStore } from "../stores/centralSkillsStore";
+import { useDiscoverStore } from "../stores/discoverStore";
 import * as tauriBridge from "@/lib/tauri";
 
 const userSourceText = /用户来源|User source/i;
@@ -246,11 +255,13 @@ const mockRefreshCounts = vi.fn();
 const mockUsePlatformStore = vi.mocked(usePlatformStore);
 const mockUseSkillStore = vi.mocked(useSkillStore);
 const mockUseCentralSkillsStore = vi.mocked(useCentralSkillsStore);
+const mockUseDiscoverStore = vi.mocked(useDiscoverStore);
 
 function buildPlatformStoreState(overrides = {}) {
   return {
     agents: [mockAgent],
     skillsByAgent: { "claude-code": 2 },
+    projectInstallations: {},
     isLoading: false,
     isRefreshing: false,
     scanGeneration: 1,
@@ -258,6 +269,9 @@ function buildPlatformStoreState(overrides = {}) {
     initialize: vi.fn(),
     rescan: vi.fn(),
     refreshCounts: mockRefreshCounts,
+    loadProjectInstallations: vi.fn(),
+    installSkillToProject: vi.fn(),
+    uninstallSkillFromProject: vi.fn(),
     ...overrides,
   };
 }
@@ -285,6 +299,13 @@ function buildCentralSkillsStoreState(overrides = {}) {
   };
 }
 
+function buildDiscoverStoreState(overrides = {}) {
+  return {
+    discoveredProjects: [],
+    ...overrides,
+  };
+}
+
 function installDefaultStoreMocks() {
   mockUsePlatformStore.mockImplementation((selector?: unknown) => {
     const state = buildPlatformStoreState();
@@ -298,6 +319,11 @@ function installDefaultStoreMocks() {
   });
   mockUseCentralSkillsStore.mockImplementation((selector?: unknown) => {
     const state = buildCentralSkillsStoreState();
+    if (typeof selector === "function") return selector(state);
+    return state;
+  });
+  mockUseDiscoverStore.mockImplementation((selector?: unknown) => {
+    const state = buildDiscoverStoreState();
     if (typeof selector === "function") return selector(state);
     return state;
   });

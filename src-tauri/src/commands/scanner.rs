@@ -427,6 +427,9 @@ pub async fn scan_all_skills_impl(pool: &DbPool) -> Result<ScanResult, String> {
                         source: Some(skill.link_type.clone()),
                         content: None,
                         scanned_at: now.clone(),
+                        source_ref: None,
+                        source_path: None,
+                        source_branch: None,
                     };
                     db::upsert_skill(pool, &db_skill).await?;
 
@@ -438,6 +441,7 @@ pub async fn scan_all_skills_impl(pool: &DbPool) -> Result<ScanResult, String> {
                         link_type: skill.link_type.clone(),
                         symlink_target: skill.symlink_target.clone(),
                         created_at: now.clone(),
+                        project_path: String::new(),
                     };
                     db::upsert_skill_installation(pool, &installation).await?;
                 }
@@ -482,6 +486,9 @@ pub async fn scan_all_skills_impl(pool: &DbPool) -> Result<ScanResult, String> {
                 source: Some(skill.link_type.clone()),
                 content: None,
                 scanned_at: now,
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             };
             db::upsert_skill(pool, &db_skill).await?;
         }

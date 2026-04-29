@@ -70,6 +70,8 @@ interface DiscoverState {
   // Actions
   loadScanRoots: () => Promise<void>;
   setScanRootEnabled: (path: string, enabled: boolean) => Promise<void>;
+  addCustomScanRoot: (path: string, label?: string) => Promise<void>;
+  removeCustomScanRoot: (path: string) => Promise<void>;
   startScan: () => Promise<void>;
   stopScan: () => Promise<void>;
   loadDiscoveredSkills: () => Promise<void>;
@@ -199,6 +201,31 @@ export const useDiscoverStore = create<DiscoverState>((set, get) => ({
         ),
         error: String(err),
       }));
+    }
+  },
+
+  addCustomScanRoot: async (path: string, label?: string) => {
+    try {
+      const roots = await invoke<ScanRoot[]>("add_custom_scan_root", {
+        path,
+        label: label || null,
+      });
+      set({ scanRoots: roots });
+    } catch (err) {
+      set({ error: String(err) });
+      throw err;
+    }
+  },
+
+  removeCustomScanRoot: async (path: string) => {
+    try {
+      const roots = await invoke<ScanRoot[]>("remove_custom_scan_root", {
+        path,
+      });
+      set({ scanRoots: roots });
+    } catch (err) {
+      set({ error: String(err) });
+      throw err;
     }
   },
 

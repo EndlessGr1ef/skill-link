@@ -50,12 +50,15 @@ pub fn run() {
             // Linker
             commands::linker::install_skill_to_agent,
             commands::linker::uninstall_skill_from_agent,
+            commands::linker::install_skill_to_project,
+            commands::linker::uninstall_skill_from_project,
             commands::linker::batch_install_to_agents,
             commands::linker::import_skill_to_central,
             commands::linker::delete_skill_from_central,
             // Skills
             commands::skills::get_skills_by_agent,
             commands::skills::get_central_skills,
+            commands::skills::get_project_skill_installations,
             commands::skills::get_skill_detail,
             commands::skills::read_skill_content,
             commands::skills::read_file_by_path,
@@ -83,6 +86,8 @@ pub fn run() {
             commands::discover::discover_scan_roots,
             commands::discover::get_scan_roots,
             commands::discover::set_scan_root_enabled,
+            commands::discover::add_custom_scan_root,
+            commands::discover::remove_custom_scan_root,
             commands::discover::start_project_scan,
             commands::discover::stop_project_scan,
             commands::discover::get_discovered_skills,
@@ -112,6 +117,9 @@ pub fn run() {
             commands::marketplace::explain_skill_stream,
             commands::marketplace::refresh_skill_explanation,
             commands::marketplace::test_ai_connection,
+            // Updates
+            commands::updates::check_skill_updates,
+            commands::updates::update_skill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

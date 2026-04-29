@@ -39,9 +39,9 @@ import { usePlatformStore } from "../stores/platformStore";
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const mockScanRoots: ScanRoot[] = [
-  { path: "/home/user/Documents", label: "Documents", exists: true, enabled: true },
-  { path: "/home/user/projects", label: "projects", exists: true, enabled: false },
-  { path: "/home/user/nonexistent", label: "nonexistent", exists: false, enabled: false },
+  { path: "/home/user/Documents", label: "Documents", exists: true, enabled: true, is_custom: false },
+  { path: "/home/user/projects", label: "projects", exists: true, enabled: false, is_custom: false },
+  { path: "/home/user/nonexistent", label: "nonexistent", exists: false, enabled: false, is_custom: false },
 ];
 
 const mockAgents: AgentWithStatus[] = [
@@ -68,6 +68,8 @@ const mockAgents: AgentWithStatus[] = [
 const mockLoadScanRoots = vi.fn();
 const mockSetScanRootEnabled = vi.fn();
 const mockStartScan = vi.fn();
+const mockAddCustomScanRoot = vi.fn();
+const mockRemoveCustomScanRoot = vi.fn();
 
 function buildDiscoverStoreState(overrides = {}) {
   return {
@@ -76,6 +78,8 @@ function buildDiscoverStoreState(overrides = {}) {
     loadScanRoots: mockLoadScanRoots,
     setScanRootEnabled: mockSetScanRootEnabled,
     startScan: mockStartScan,
+    addCustomScanRoot: mockAddCustomScanRoot,
+    removeCustomScanRoot: mockRemoveCustomScanRoot,
     ...overrides,
   };
 }

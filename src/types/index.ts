@@ -12,6 +12,17 @@ export interface AgentWithStatus {
   is_enabled: boolean;
 }
 
+export interface SkillInstallation {
+  skill_id: string;
+  agent_id: string;
+  installed_path: string;
+  link_type: string;
+  symlink_target?: string;
+  created_at: string;
+  /** Project path for project-level installs. Empty string for global installs. */
+  project_path: string;
+}
+
 export interface CustomAgentConfig {
   id?: string;
   display_name: string;
@@ -84,6 +95,12 @@ export interface SkillDetail extends Omit<Skill, "content"> {
   is_read_only?: boolean;
   conflict_group?: string | null;
   conflict_count?: number;
+  /** Commit SHA at install time. Null = unknown. */
+  source_ref?: string;
+  /** Path within the source repository. */
+  source_path?: string;
+  /** Branch/tag tracked for updates. Null = track default branch. */
+  source_branch?: string;
   installations: SkillInstallation[];
   /** Collections this skill currently belongs to. */
   collections?: Collection[];
@@ -119,6 +136,12 @@ export interface SkillWithLinks {
   scanned_at: string;
   created_at?: string;
   updated_at?: string;
+  /** Commit SHA at install time. Null = unknown. */
+  source_ref?: string;
+  /** Path within the source repository. */
+  source_path?: string;
+  /** Branch/tag tracked for updates. Null = track default branch. */
+  source_branch?: string;
   /** Agent IDs that currently have this skill installed (symlink or copy). */
   linked_agents: string[];
 }
@@ -170,6 +193,7 @@ export interface ScanRoot {
   label: string;
   exists: boolean;
   enabled: boolean;
+  is_custom: boolean;
 }
 
 export interface DiscoveredSkill {
@@ -333,4 +357,18 @@ export interface GitHubImportProgressPayload {
   totalFiles: number;
   completedBytes: number;
   totalBytes: number;
+}
+
+// ─── Skill Update Types ───────────────────────────────────────────────────────
+
+export type UpdateStatus =
+  | { type: "UpToDate" }
+  | { type: "UpdateAvailable"; latest_sha: string; commit_message?: string; commit_date?: string }
+  | { type: "CheckFailed"; error: string }
+  | { type: "NotApplicable" }
+  | { type: "Checking" };
+
+export interface SkillUpdateStatus {
+  skill_id: string;
+  update_status: UpdateStatus;
 }

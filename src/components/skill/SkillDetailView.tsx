@@ -16,12 +16,15 @@ import {
   Monitor,
   FolderOpen,
   Lock,
+  ArrowUpCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { SkillFrontmatterCard } from "@/components/skill/SkillFrontmatterCard";
 import { parseFrontmatter } from "@/lib/frontmatter";
 import { useSkillDetailStore } from "@/stores/skillDetailStore";
+import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { usePlatformStore } from "@/stores/platformStore";
 import { CollectionPickerDialog } from "@/components/collection/CollectionPickerDialog";
 import {
@@ -294,6 +297,12 @@ export function SkillDetailView({
   // Platform agents (loaded at app init)
   const agents = usePlatformStore((s) => s.agents);
   const refreshCounts = usePlatformStore((s) => s.refreshCounts);
+
+  // Update detection (from central store)
+  const updateStatuses = useCentralSkillsStore((s) => s.updateStatuses);
+  const updatingSkillId = useCentralSkillsStore((s) => s.updatingSkillId);
+  const updateSkillAction = useCentralSkillsStore((s) => s.updateSkill);
+  const checkUpdates = useCentralSkillsStore((s) => s.checkUpdates);
 
   // Local state for filePath mode
   const [fileContent, setFileContent] = useState<string | null>(null);
@@ -575,6 +584,45 @@ export function SkillDetailView({
       // silently ignore
     }
   }, [discoverMetadata]);
+
+  // ── Update-related derived values & handlers ──
+  const skillUpdateStatus = skillId ? updateStatuses[skillId] : undefined;
+  const isUpdateAvailable = skillUpdateStatus?.type === "UpdateAvailable";
+  const isUpdating = updatingSkillId === skillId;
+
+  // Derive GitHub URL from source field
+  const githubSourceUrl = useMemo(() => {
+    if (!detail?.source?.startsWith("github:")) return null;
+    const repoPart = detail.source.slice("github:".length);
+    const [owner, repo] = repoPart.split("/");
+    if (!owner || !repo) return null;
+    let url = `https://github.com/${owner}/${repo}`;
+    if (detail.source_path) {
+      url += `/tree/${detail.source_branch ?? "main"}/${detail.source_path}`;
+    }
+    return url;
+  }, [detail?.source, detail?.source_path, detail?.source_branch]);
+
+  async function handleUpdateSkill() {
+    if (!skillId) return;
+    try {
+      await updateSkillAction(skillId);
+      // Reload the detail after update
+      if (detailRequest) loadDetail(detailRequest);
+      toast.success(t("central.updateSuccess"));
+    } catch (err) {
+      toast.error(t("central.updateError", { error: String(err) }));
+    }
+  }
+
+  async function handleCheckUpdateForSkill() {
+    if (!skillId) return;
+    try {
+      await checkUpdates([skillId]);
+    } catch (err) {
+      toast.error(t("central.updatesCheckError", { error: String(err) }));
+    }
+  }
 
   const previewContent = selectedFilePath && skillFilePath && selectedFilePath !== skillFilePath
     ? selectedFileContent
@@ -1092,6 +1140,81 @@ export function SkillDetailView({
                       </div>
                     )}
                   </section>
+
+                  {/* Update Available */}
+                  {(isUpdateAvailable || skillUpdateStatus?.type === "Checking") && !detail.is_read_only && (
+                    <section aria-label={t("central.updateAvailable")}>
+                      <SectionLabel>{t("central.updateAvailable")}</SectionLabel>
+                      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
+                        {skillUpdateStatus?.type === "UpdateAvailable" && (
+                          <>
+                            {skillUpdateStatus.commit_message && (
+                              <p className="text-xs text-foreground leading-relaxed line-clamp-3">
+                                {skillUpdateStatus.commit_message}
+                              </p>
+                            )}
+                            {skillUpdateStatus.commit_date && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {new Date(skillUpdateStatus.commit_date).toLocaleString()}
+                              </p>
+                            )}
+                          </>
+                        )}
+                        <Button
+                          size="sm"
+                          onClick={handleUpdateSkill}
+                          disabled={isUpdating}
+                          className="gap-1.5 w-full"
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <ArrowUpCircle className="size-3.5" />
+                          )}
+                          {isUpdating
+                            ? t("central.updating", { defaultValue: "Updating..." })
+                            : t("central.updateNow", { defaultValue: "Update now" })}
+                        </Button>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Source Info (GitHub) */}
+                  {githubSourceUrl && (
+                    <section aria-label={t("detail.source")}>
+                      <SectionLabel>{t("detail.source")}</SectionLabel>
+                      <div className="space-y-1.5">
+                        <a
+                          href={githubSourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+                        >
+                          <ExternalLink className="size-3" />
+                          {detail.source!.slice("github:".length)}
+                        </a>
+                        {detail.source_branch && (
+                          <MetadataRow
+                            label={t("detail.sourceBranch", {
+                              defaultValue: i18n.language.startsWith("zh") ? "分支" : "Branch",
+                            })}
+                            value={detail.source_branch}
+                          />
+                        )}
+                        {!isUpdateAvailable && !skillUpdateStatus && !detail.is_read_only && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCheckUpdateForSkill}
+                            className="gap-1 text-xs text-muted-foreground hover:text-foreground h-6 px-2"
+                          >
+                            <ArrowUpCircle className="size-3" />
+                            {t("central.checkUpdates")}
+                          </Button>
+                        )}
+                      </div>
+                    </section>
+                  )}
                 </>
               ) : null}
             </aside>

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Search, RefreshCw, Blocks, FolderOpen, Settings, ArrowUpDown, Eye, EyeOff } from "lucide-react";
+import { Search, RefreshCw, Blocks, FolderOpen, Settings, ArrowUpDown, Eye, EyeOff, ArrowUpCircle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -198,6 +198,11 @@ export function CentralSkillsView() {
   const togglingAgentId = useCentralSkillsStore((state) => state.togglingAgentId);
   const deleteSkill = useCentralSkillsStore((state) => state.deleteSkill);
   const isDeleting = useCentralSkillsStore((state) => state.isDeleting);
+  const updateStatuses = useCentralSkillsStore((state) => state.updateStatuses);
+  const isCheckingUpdates = useCentralSkillsStore((state) => state.isCheckingUpdates);
+  const updatingSkillId = useCentralSkillsStore((state) => state.updatingSkillId);
+  const checkUpdates = useCentralSkillsStore((state) => state.checkUpdates);
+  const updateSkillAction = useCentralSkillsStore((state) => state.updateSkill);
 
   // Keep the platform sidebar counts in sync after install.
   const refreshCounts =
@@ -354,6 +359,34 @@ export function CentralSkillsView() {
     }
   }
 
+  async function handleCheckUpdates() {
+    try {
+      const results = await checkUpdates();
+      const available = results.filter((r) => r.update_status.type === "UpdateAvailable").length;
+      if (available > 0) {
+        toast.success(t("central.updatesAvailable", { count: available }));
+      } else {
+        const failed = results.filter((r) => r.update_status.type === "CheckFailed").length;
+        if (failed > 0) {
+          toast.error(t("central.updatesCheckPartialFail", { count: failed }));
+        } else {
+          toast.success(t("central.allUpToDate"));
+        }
+      }
+    } catch (err) {
+      toast.error(t("central.updatesCheckError", { error: String(err) }));
+    }
+  }
+
+  async function handleUpdateSkill(skillId: string) {
+    try {
+      await updateSkillAction(skillId);
+      toast.success(t("central.updateSuccess"));
+    } catch (err) {
+      toast.error(t("central.updateError", { error: String(err) }));
+    }
+  }
+
   async function handleInstall(skillId: string, agentIds: string[], method: string) {
     try {
       const result = await installSkill(skillId, agentIds, method);
@@ -453,11 +486,13 @@ export function CentralSkillsView() {
         name={skill.name}
         description={skill.description}
         updatedAt={skill.updated_at}
+        updateStatus={updateStatuses[skill.id]}
+        onUpdate={() => handleUpdateSkill(skill.id)}
         onDetail={() => handleOpenDrawer(skill.id)}
         onInstallTo={() => handleInstallClick(skill)}
         onRemove={() => handleDeleteSkill(skill.id)}
         removeLabel={t("central.deleteSkillLabel", { name: skill.name })}
-        isLoading={isDeleting}
+        isLoading={isDeleting || updatingSkillId === skill.id}
         detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
         className="h-[104px]"
       />
@@ -479,6 +514,20 @@ export function CentralSkillsView() {
               aria-label={t("central.refresh")}
             >
               <RefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCheckUpdates}
+              disabled={isCheckingUpdates || skills.length === 0}
+              className="gap-1.5 text-xs"
+            >
+              {isCheckingUpdates ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <ArrowUpCircle className="size-3.5" />
+              )}
+              {t("central.checkUpdates")}
             </Button>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -607,11 +656,13 @@ export function CentralSkillsView() {
                 name={skill.name}
                 description={skill.description}
                 updatedAt={skill.updated_at}
+                updateStatus={updateStatuses[skill.id]}
+                onUpdate={() => handleUpdateSkill(skill.id)}
                 onDetail={() => handleOpenDrawer(skill.id)}
                 onInstallTo={() => handleInstallClick(skill)}
                 onRemove={() => handleDeleteSkill(skill.id)}
                 removeLabel={t("central.deleteSkillLabel", { name: skill.name })}
-                isLoading={isDeleting}
+                isLoading={isDeleting || updatingSkillId === skill.id}
                 detailButtonRef={(node) => setDetailButtonRef(skill.id, node)}
                 platformIcons={{
                   agents: platformIconAgents,

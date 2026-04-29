@@ -255,6 +255,8 @@ function buildDiscoverStoreState(overrides = {}) {
     startScan: vi.fn(),
     stopScan: mockStopScan,
     setScanRootEnabled: vi.fn(),
+    addCustomScanRoot: vi.fn(),
+    removeCustomScanRoot: vi.fn(),
     clearResults: vi.fn(),
     selectAllVisible: vi.fn(),
     refreshCounts: vi.fn(),
@@ -276,6 +278,10 @@ function buildPlatformStoreState(overrides = {}) {
     initialize: vi.fn(),
     rescan: mockRescan,
     refreshCounts: vi.fn(),
+    projectInstallations: {},
+    loadProjectInstallations: vi.fn(),
+    installSkillToProject: vi.fn(),
+    uninstallSkillFromProject: vi.fn(),
     ...overrides,
   };
 }

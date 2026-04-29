@@ -12,13 +12,14 @@ import {
   Loader2,
   Lock,
   Clock,
+  ArrowUpCircle,
 } from "lucide-react";
 import type { MouseEventHandler, Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InlineConfirmAction } from "@/components/ui/inline-confirm-action";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
-import type { AgentWithStatus, ClaudeSourceKind } from "@/types";
+import type { AgentWithStatus, ClaudeSourceKind, UpdateStatus } from "@/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
 
 // ─── Platform Toggle Icon (internal) ──────────────────────────────────────────
@@ -95,6 +96,10 @@ export interface UnifiedSkillCardProps {
   // ── timestamp ──
   updatedAt?: string;
 
+  // ── update status ──
+  updateStatus?: UpdateStatus;
+  onUpdate?: () => void;
+
   // ── actions (pass only the ones relevant to the context) ──
   onDetail?: MouseEventHandler<HTMLButtonElement>;
   onInstallTo?: () => void;
@@ -130,6 +135,8 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
     tags,
     publisher,
     updatedAt,
+    updateStatus,
+    onUpdate,
     onDetail,
     onInstallTo,
     onInstallToCentral,
@@ -408,10 +415,25 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
         </div>
       </div>
 
-      {/* Bottom-right: updated time */}
-      {updatedAt && (
-        <div className="flex justify-end mt-1">
-          <TimeBadge iso={updatedAt} />
+      {/* Bottom: update badge + updated time */}
+      {(updateStatus?.type === "UpdateAvailable" || updatedAt) && (
+        <div className="flex items-center justify-between mt-1">
+          {updateStatus?.type === "UpdateAvailable" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate?.();
+              }}
+              className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+              title={updateStatus.commit_message ?? t("central.updateAvailable")}
+            >
+              <ArrowUpCircle className="size-3.5 shrink-0" />
+              {t("central.updateAvailable")}
+            </button>
+          )}
+          {updatedAt && (
+            <TimeBadge iso={updatedAt} className={updateStatus?.type === "UpdateAvailable" ? "" : "ml-auto"} />
+          )}
         </div>
       )}
     </div>
@@ -488,7 +510,7 @@ function ReadOnlyBadge() {
   );
 }
 
-function TimeBadge({ iso }: { iso: string }) {
+function TimeBadge({ iso, className }: { iso: string; className?: string }) {
   const { i18n } = useTranslation();
   const relative = formatRelativeTime(iso, i18n.language);
   if (!relative) return null;
@@ -496,7 +518,7 @@ function TimeBadge({ iso }: { iso: string }) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70"
+      className={cn("inline-flex items-center gap-1 text-[10px] text-muted-foreground/70", className)}
       title={fullDate}
     >
       <Clock className="size-3 shrink-0" />

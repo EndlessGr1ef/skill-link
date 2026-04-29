@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Search, Blocks } from "lucide-react";
+import { Search, Blocks, FolderOpen, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { usePlatformStore } from "@/stores/platformStore";
 import { useSkillStore } from "@/stores/skillStore";
 import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
+import { useDiscoverStore } from "@/stores/discoverStore";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { UnifiedSkillCard } from "@/components/skill/UnifiedSkillCard";
 import { SkillDetailDrawer } from "@/components/skill/SkillDetailDrawer";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { InstallDialog } from "@/components/central/InstallDialog";
+import { ProjectInstallDialog } from "@/components/platform/ProjectInstallDialog";
 import { formatPathForDisplay } from "@/lib/path";
 import { cn } from "@/lib/utils";
 import { ScannedSkill, SkillWithLinks } from "@/types";
@@ -53,6 +56,13 @@ export function PlatformView() {
   const importToCentral = useCentralSkillsStore((state) => state.importToCentral);
   const refreshCounts = usePlatformStore((state) => state.refreshCounts);
 
+  // Project-level installation state
+  const projectInstallations = usePlatformStore((state) => state.projectInstallations);
+  const loadProjectInstallations = usePlatformStore((state) => state.loadProjectInstallations);
+  const installSkillToProject = usePlatformStore((state) => state.installSkillToProject);
+  const uninstallSkillFromProject = usePlatformStore((state) => state.uninstallSkillFromProject);
+  const discoveredProjects = useDiscoverStore((state) => state.discoveredProjects);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<ClaudeSourceFilter>("all");
   const [installTargetSkill, setInstallTargetSkill] = useState<InstallTargetSkill | null>(null);
@@ -60,6 +70,8 @@ export function PlatformView() {
   const [drawerSkill, setDrawerSkill] = useState<ScannedSkill | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [returnFocusRowKey, setReturnFocusRowKey] = useState<string | null>(null);
+  const [projectInstallTarget, setProjectInstallTarget] = useState<{ skillId: string; skillName: string } | null>(null);
+  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const detailButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -74,8 +86,13 @@ export function PlatformView() {
   useEffect(() => {
     if (agentId) {
       getSkillsByAgent(agentId);
+      // Load project installations for coding agents that support project skills.
+      const currentAgent = agents.find((a) => a.id === agentId);
+      if (currentAgent?.project_skills_dir) {
+        loadProjectInstallations(agentId);
+      }
     }
-  }, [agentId, getSkillsByAgent, scanGeneration]);
+  }, [agentId, getSkillsByAgent, scanGeneration, agents, loadProjectInstallations]);
 
   useEffect(() => {
     if (!contentRef.current) return;
@@ -142,6 +159,25 @@ export function PlatformView() {
       toast.success(t("discover.importSuccess"));
     } catch (err) {
       toast.error(t("discover.importError", { error: String(err) }));
+    }
+  }
+
+  async function handleInstallToProject(skillId: string, _agentId: string, projectPath: string) {
+    if (!agentId) return;
+    try {
+      await installSkillToProject(skillId, agentId, projectPath);
+      toast.success(t("discover.importSuccess"));
+    } catch (err) {
+      toast.error(t("discover.importError", { error: String(err) }));
+    }
+  }
+
+  async function handleUninstallFromProject(skillId: string, projectPath: string) {
+    if (!agentId) return;
+    try {
+      await uninstallSkillFromProject(skillId, agentId, projectPath);
+    } catch (err) {
+      toast.error(t("detail.uninstallError", { error: String(err) }));
     }
   }
 
@@ -375,6 +411,73 @@ export function PlatformView() {
             ))}
           </div>
         )}
+
+        {/* Project Skills Section — only for coding agents with project_skills_dir */}
+        {agent.project_skills_dir && agentId && (
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-semibold flex items-center gap-2">
+                  <FolderOpen className="size-4 text-muted-foreground" />
+                  {t("platform.projectSkills")}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("platform.projectSkillsDesc", { name: agent.display_name })}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setProjectInstallTarget({ skillId: "", skillName: "" });
+                  setIsProjectDialogOpen(true);
+                }}
+              >
+                <Plus className="size-3.5 mr-1" />
+                {t("platform.installToProject")}
+              </Button>
+            </div>
+
+            {(projectInstallations[agentId] ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                {t("platform.noProjectInstallations")}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {(projectInstallations[agentId] ?? []).map((inst) => {
+                  const projectPath = inst.project_path;
+                  const projectName = projectPath.split("/").pop() ?? projectPath;
+                  return (
+                    <div
+                      key={`${inst.skill_id}::${inst.project_path}`}
+                      className="flex items-center gap-3 rounded-xl ring-1 ring-border bg-card shadow-sm p-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{inst.skill_id}</div>
+                        <div className="text-xs text-muted-foreground truncate" title={projectPath}>
+                          <FolderOpen className="inline size-3 mr-1" />
+                          {projectName}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleUninstallFromProject(inst.skill_id, inst.project_path)}
+                        aria-label={t("platform.uninstallFromProjectLabel", {
+                          skill: inst.skill_id,
+                          project: projectName,
+                        })}
+                      >
+                        <X className="size-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Install Dialog */}
@@ -384,6 +487,20 @@ export function PlatformView() {
         skill={installTargetSkill}
         agents={agents}
         onInstall={handleInstall}
+      />
+
+      {/* Project Install Dialog */}
+      <ProjectInstallDialog
+        open={isProjectDialogOpen}
+        onOpenChange={setIsProjectDialogOpen}
+        skillId={projectInstallTarget?.skillId ?? ""}
+        skillName={projectInstallTarget?.skillName ?? ""}
+        agentId={agentId ?? ""}
+        agentName={agent?.display_name ?? ""}
+        centralSkills={centralSkills}
+        discoveredProjects={discoveredProjects}
+        existingInstallations={projectInstallations[agentId ?? ""] ?? []}
+        onInstall={handleInstallToProject}
       />
 
       <SkillDetailDrawer

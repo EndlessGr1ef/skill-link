@@ -8,7 +8,7 @@ use serde_json;
 use tauri::{Emitter, State};
 
 use crate::db::{self, DbPool};
-use crate::path_utils::{central_skills_dir, path_to_string, resolve_home_dir};
+use crate::path_utils::{central_skills_dir, expand_home_path, path_to_string, resolve_home_dir};
 use crate::AppState;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,6 +20,27 @@ pub struct ScanRoot {
     pub label: String,
     pub exists: bool,
     pub enabled: bool,
+    /// True if this root was added by the user (not a built-in default).
+    pub is_custom: bool,
+}
+
+/// Persisted configuration for discover scan roots.
+///
+/// Evolved from the old format (plain `HashMap<String, bool>`) to support
+/// custom user-added roots alongside default roots.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ScanRootsConfig {
+    /// Enabled state for root paths (both default and custom).
+    enabled: HashMap<String, bool>,
+    /// User-added custom roots with optional labels.
+    custom: Vec<CustomRootEntry>,
+}
+
+/// A user-added custom scan root.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CustomRootEntry {
+    path: String,
+    label: String,
 }
 
 /// A project-level skill discovered during a full-disk scan.
@@ -121,6 +142,7 @@ fn default_scan_roots() -> Vec<ScanRoot> {
                 label: label.to_string(),
                 exists,
                 enabled: exists, // auto-enable roots that exist
+                is_custom: false,
             }
         })
         .collect()
@@ -203,6 +225,12 @@ fn should_skip_dir(name: &str, depth: u32) -> bool {
 /// `.cursor/skills/`, `.factory/skills/`). When a match is found, the
 /// containing directory is treated as a "project" and its skills are collected.
 ///
+/// Additionally, if the root directory itself is a skills directory (i.e., it
+/// directly contains subdirectories with SKILL.md files, or it matches a known
+/// platform pattern like `.claude/skills`), those skills are also collected.
+/// This allows users to add a custom scan root that IS a skills directory
+/// rather than just a parent project directory.
+///
 /// Skips hidden directories at root level (except dot-prefixed platform dirs
 /// which are matched via patterns), and always skips performance-heavy
 /// directories like `node_modules`, `.git`, `target`, `build`, `dist`.
@@ -216,6 +244,14 @@ fn scan_root_for_projects(
 ) -> Vec<DiscoveredProject> {
     let mut projects = Vec::new();
     let mut seen_project_paths = std::collections::HashSet::new();
+
+    // ── Check if root itself is a skills directory ──────────────────────────
+    // This handles two cases:
+    // 1. Root matches a known platform pattern (e.g., ~/.claude/skills)
+    // 2. Root directly contains skill subdirectories (any dir with SKILL.md)
+    scan_root_as_skills_dir(root, patterns, central_dir, &mut projects, &mut seen_project_paths);
+
+    // ── Normal recursive scan ───────────────────────────────────────────────
     scan_root_recursive(
         root,
         patterns,
@@ -225,6 +261,138 @@ fn scan_root_for_projects(
         &mut seen_project_paths,
     );
     projects
+}
+
+/// Check if the root directory itself is a skills directory and collect any
+/// skills found directly inside it.
+///
+/// Two detection modes:
+/// 1. **Platform pattern match**: If root ends with a known relative pattern
+///    (e.g., `.claude/skills`), treat the parent as the project and scan root
+///    for skills using that platform's identity.
+/// 2. **Direct skills**: If root directly contains subdirectories with SKILL.md,
+///    treat root's parent as the project with a "custom" platform identity.
+fn scan_root_as_skills_dir(
+    root: &Path,
+    patterns: &[(String, String, PathBuf)],
+    central_dir: &Path,
+    projects: &mut Vec<DiscoveredProject>,
+    seen_project_paths: &mut std::collections::HashSet<String>,
+) {
+    // Mode 1: Check if root matches a known platform skill pattern.
+    for (agent_id, display_name, rel_pattern) in patterns {
+        if root.ends_with(rel_pattern) {
+            // Root IS a platform skills dir (e.g., ~/project/.claude/skills).
+            // The project is two levels up: .claude/skills → .claude → project.
+            let project_path = root
+                .parent()
+                .and_then(|p| p.parent())
+                .unwrap_or(root);
+            let project_path_key = path_to_string(project_path);
+
+            if seen_project_paths.contains(&project_path_key) {
+                continue; // Already found via another scan path.
+            }
+
+            let scanned = super::scanner::scan_directory(root, false);
+            if scanned.is_empty() {
+                continue;
+            }
+
+            let project_name = project_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            let skills: Vec<DiscoveredSkill> = scanned
+                .into_iter()
+                .map(|skill| {
+                    let is_already_central = central_dir.join(&skill.id).exists();
+                    DiscoveredSkill {
+                        id: format!(
+                            "{}__{}__{}",
+                            agent_id,
+                            project_name.to_lowercase().replace(' ', "-"),
+                            skill.id
+                        ),
+                        name: skill.name,
+                        description: skill.description,
+                        file_path: skill.file_path,
+                        dir_path: skill.dir_path,
+                        platform_id: agent_id.clone(),
+                        platform_name: display_name.clone(),
+                        project_path: project_path_key.clone(),
+                        project_name: project_name.clone(),
+                        is_already_central,
+                    }
+                })
+                .collect();
+
+            seen_project_paths.insert(project_path_key.clone());
+            projects.push(DiscoveredProject {
+                project_path: project_path_key,
+                project_name,
+                skills,
+            });
+            return; // Root matched a platform pattern — no need for mode 2.
+        }
+    }
+
+    // Mode 2: Check if root directly contains skill subdirectories (SKILL.md).
+    let direct_skills = super::scanner::scan_directory(root, false);
+    if direct_skills.is_empty() {
+        return;
+    }
+
+    // Use root's parent as project path, root's name as part of identity.
+    let project_path = root.parent().unwrap_or(root);
+    let project_path_key = path_to_string(project_path);
+
+    if seen_project_paths.contains(&project_path_key) {
+        return; // Already found via another scan path.
+    }
+
+    let project_name = project_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let root_name = root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("skills");
+
+    let skills: Vec<DiscoveredSkill> = direct_skills
+        .into_iter()
+        .map(|skill| {
+            let is_already_central = central_dir.join(&skill.id).exists();
+            DiscoveredSkill {
+                id: format!(
+                    "custom__{}__{}",
+                    root_name.to_lowercase().replace(' ', "-"),
+                    skill.id
+                ),
+                name: skill.name,
+                description: skill.description,
+                file_path: skill.file_path,
+                dir_path: skill.dir_path,
+                platform_id: "custom".to_string(),
+                platform_name: root_name.to_string(),
+                project_path: project_path_key.clone(),
+                project_name: project_name.clone(),
+                is_already_central,
+            }
+        })
+        .collect();
+
+    seen_project_paths.insert(project_path_key.clone());
+    projects.push(DiscoveredProject {
+        project_path: project_path_key,
+        project_name,
+        skills,
+    });
 }
 
 /// Inner recursive walker. Accumulates found projects into `projects`.
@@ -410,35 +578,77 @@ pub async fn discover_scan_roots() -> Result<Vec<ScanRoot>, String> {
     Ok(default_scan_roots())
 }
 
+/// Load and deserialize the scan roots config, migrating from the old format
+/// (plain `HashMap<String, bool>`) if necessary.
+async fn load_scan_roots_config(pool: &DbPool) -> Result<ScanRootsConfig, String> {
+    match db::get_setting(pool, "discover_scan_roots_config").await? {
+        Some(json) => {
+            // Try new format first.
+            if let Ok(config) = serde_json::from_str::<ScanRootsConfig>(&json) {
+                return Ok(config);
+            }
+            // Fall back to old format (plain HashMap<String, bool>) and migrate.
+            let enabled: HashMap<String, bool> = serde_json::from_str(&json)
+                .map_err(|e| format!("Invalid scan roots config: {}", e))?;
+            let config = ScanRootsConfig {
+                enabled,
+                custom: Vec::new(),
+            };
+            // Persist the migrated format.
+            let migrated = serde_json::to_string(&config)
+                .map_err(|e| format!("Failed to serialize migrated config: {}", e))?;
+            db::set_setting(pool, "discover_scan_roots_config", &migrated).await?;
+            Ok(config)
+        }
+        None => Ok(ScanRootsConfig {
+            enabled: HashMap::new(),
+            custom: Vec::new(),
+        }),
+    }
+}
+
+/// Persist the scan roots config.
+async fn save_scan_roots_config(pool: &DbPool, config: &ScanRootsConfig) -> Result<(), String> {
+    let json = serde_json::to_string(config)
+        .map_err(|e| format!("Failed to serialize scan roots config: {}", e))?;
+    db::set_setting(pool, "discover_scan_roots_config", &json).await
+}
+
 /// Get scan roots with persisted enabled state from DB.
 ///
-/// Returns auto-detected default roots, then overlays any previously
-/// persisted enabled/disabled states from the settings table.
+/// Returns auto-detected default roots plus user-added custom roots,
+/// then overlays any previously persisted enabled/disabled states.
 #[tauri::command]
 pub async fn get_scan_roots(state: State<'_, AppState>) -> Result<Vec<ScanRoot>, String> {
     let pool = &state.db;
     let mut roots = default_scan_roots();
 
-    // Load persisted enabled states from settings.
-    // We store a single JSON blob under the key "discover_scan_roots_config"
-    // mapping path -> enabled (bool).
-    if let Some(json) = db::get_setting(pool, "discover_scan_roots_config").await? {
-        let config: HashMap<String, bool> =
-            serde_json::from_str(&json).map_err(|e| format!("Invalid scan roots config: {}", e))?;
-        for root in &mut roots {
-            if let Some(&enabled) = config.get(&root.path) {
-                root.enabled = enabled;
-            }
+    let config = load_scan_roots_config(pool).await?;
+
+    // Overlay persisted enabled states for default roots.
+    for root in &mut roots {
+        if let Some(&enabled) = config.enabled.get(&root.path) {
+            root.enabled = enabled;
         }
+    }
+
+    // Append custom roots.
+    for entry in &config.custom {
+        let exists = Path::new(&entry.path).exists();
+        let enabled = config.enabled.get(&entry.path).copied().unwrap_or(true);
+        roots.push(ScanRoot {
+            path: entry.path.clone(),
+            label: entry.label.clone(),
+            exists,
+            enabled,
+            is_custom: true,
+        });
     }
 
     Ok(roots)
 }
 
 /// Persist the enabled/disabled state of a scan root.
-///
-/// Updates the "discover_scan_roots_config" setting in the DB, which
-/// stores a JSON object mapping root paths to their enabled state.
 #[tauri::command]
 pub async fn set_scan_root_enabled(
     state: State<'_, AppState>,
@@ -446,20 +656,100 @@ pub async fn set_scan_root_enabled(
     enabled: bool,
 ) -> Result<(), String> {
     let pool = &state.db;
+    let mut config = load_scan_roots_config(pool).await?;
+    config.enabled.insert(path, enabled);
+    save_scan_roots_config(pool, &config).await
+}
 
-    // Load existing config or start fresh.
-    let mut config: HashMap<String, bool> =
-        match db::get_setting(pool, "discover_scan_roots_config").await? {
-            Some(json) => serde_json::from_str(&json)
-                .map_err(|e| format!("Invalid scan roots config: {}", e))?,
-            None => HashMap::new(),
-        };
+/// Add a custom scan root directory.
+///
+/// Resolves `~` in the path, validates the directory exists, and persists
+/// it to the scan roots config. The new root is enabled by default.
+#[tauri::command]
+pub async fn add_custom_scan_root(
+    state: State<'_, AppState>,
+    path: String,
+    label: Option<String>,
+) -> Result<Vec<ScanRoot>, String> {
+    let pool = &state.db;
 
-    config.insert(path, enabled);
+    // Resolve home directory (~ → actual home).
+    let resolved_path = expand_home_path(&path);
+    let resolved_str = path_to_string(&resolved_path);
 
-    let json = serde_json::to_string(&config)
-        .map_err(|e| format!("Failed to serialize scan roots config: {}", e))?;
-    db::set_setting(pool, "discover_scan_roots_config", &json).await
+    // Validate the directory exists.
+    if !resolved_path.exists() || !resolved_path.is_dir() {
+        return Err(format!("Directory does not exist: {}", resolved_str));
+    }
+
+    let mut config = load_scan_roots_config(pool).await?;
+
+    // Check for duplicates (default or custom).
+    let default_roots = default_scan_roots();
+    if default_roots.iter().any(|r| r.path == resolved_str) {
+        return Err(format!(
+            "Directory '{}' is already a default scan root",
+            resolved_str
+        ));
+    }
+    if config.custom.iter().any(|e| e.path == resolved_str) {
+        return Err(format!(
+            "Directory '{}' is already a custom scan root",
+            resolved_str
+        ));
+    }
+
+    // Use the last path component as default label if none provided.
+    let root_label = label.unwrap_or_else(|| {
+        resolved_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Custom")
+            .to_string()
+    });
+
+    config.custom.push(CustomRootEntry {
+        path: resolved_str.clone(),
+        label: root_label,
+    });
+    // Enable by default.
+    config.enabled.insert(resolved_str, true);
+
+    save_scan_roots_config(pool, &config).await?;
+
+    // Return updated roots list.
+    get_scan_roots(state).await
+}
+
+/// Remove a custom scan root directory.
+///
+/// Only custom roots can be removed; default roots cannot.
+#[tauri::command]
+pub async fn remove_custom_scan_root(
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<Vec<ScanRoot>, String> {
+    let pool = &state.db;
+
+    let mut config = load_scan_roots_config(pool).await?;
+
+    let before = config.custom.len();
+    config.custom.retain(|e| e.path != path);
+
+    if config.custom.len() == before {
+        return Err(format!(
+            "Custom scan root '{}' not found (default roots cannot be removed)",
+            path
+        ));
+    }
+
+    // Clean up enabled state for the removed root.
+    config.enabled.remove(&path);
+
+    save_scan_roots_config(pool, &config).await?;
+
+    // Return updated roots list.
+    get_scan_roots(state).await
 }
 
 /// Start a project-discovery scan across the given root directories.
@@ -719,6 +1009,9 @@ pub async fn import_discovered_skill_to_central(
             source: Some("copy".to_string()),
             content: None,
             scanned_at: now,
+            source_ref: None,
+            source_path: None,
+            source_branch: None,
         };
         db::upsert_skill(pool, &db_skill).await?;
     }
@@ -799,6 +1092,9 @@ pub async fn import_discovered_skill_to_platform(
             source: Some("symlink".to_string()),
             content: None,
             scanned_at: now.clone(),
+            source_ref: None,
+            source_path: None,
+            source_branch: None,
         };
         db::upsert_skill(pool, &db_skill).await?;
     }
@@ -810,6 +1106,7 @@ pub async fn import_discovered_skill_to_platform(
         link_type: "symlink".to_string(),
         symlink_target: Some(skill.dir_path.clone()),
         created_at: now,
+        project_path: String::new(),
     };
     db::upsert_skill_installation(pool, &installation).await?;
 
@@ -910,6 +1207,78 @@ mod tests {
         assert_eq!(projects[0].skills.len(), 1);
         assert_eq!(projects[0].skills[0].platform_id, "claude-code");
         assert_eq!(projects[0].skills[0].name, "deploy");
+    }
+
+    #[tokio::test]
+    async fn test_scan_root_detects_platform_skills_dir_as_root() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        std::fs::create_dir_all(&central_dir).unwrap();
+
+        // Create a project with .claude/skills/ containing a skill.
+        let project_dir = tmp.path().join("my-project");
+        let skill_dir = project_dir.join(".claude/skills/deploy-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: deploy\ndescription: Deploy stuff\n---\n\n# Deploy\n",
+        )
+        .unwrap();
+
+        let patterns = vec![(
+            "claude-code".to_string(),
+            "Claude Code".to_string(),
+            PathBuf::from(".claude/skills"),
+        )];
+
+        // Scan using .claude/skills as the root (not the project dir).
+        let skills_root = project_dir.join(".claude/skills");
+        let projects = scan_root_for_projects(&skills_root, &patterns, &central_dir);
+
+        assert_eq!(projects.len(), 1, "should find 1 project from skills dir root");
+        assert_eq!(projects[0].project_name, "my-project");
+        assert_eq!(projects[0].skills.len(), 1);
+        assert_eq!(projects[0].skills[0].platform_id, "claude-code");
+        assert_eq!(projects[0].skills[0].name, "deploy");
+    }
+
+    #[tokio::test]
+    async fn test_scan_root_detects_direct_skills_dir() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let central_dir = tmp.path().join("central");
+        std::fs::create_dir_all(&central_dir).unwrap();
+
+        // Create a custom skills directory with SKILL.md subdirs directly.
+        let custom_skills_dir = tmp.path().join("my-custom-skills");
+        let skill_a = custom_skills_dir.join("skill-a");
+        std::fs::create_dir_all(&skill_a).unwrap();
+        std::fs::write(
+            skill_a.join("SKILL.md"),
+            "---\nname: skill-a\ndescription: A custom skill\n---\n\n# A\n",
+        )
+        .unwrap();
+
+        let skill_b = custom_skills_dir.join("skill-b");
+        std::fs::create_dir_all(&skill_b).unwrap();
+        std::fs::write(
+            skill_b.join("SKILL.md"),
+            "---\nname: skill-b\ndescription: Another custom skill\n---\n\n# B\n",
+        )
+        .unwrap();
+
+        let patterns = vec![(
+            "claude-code".to_string(),
+            "Claude Code".to_string(),
+            PathBuf::from(".claude/skills"),
+        )];
+
+        // Scan the custom skills dir directly (no platform pattern match).
+        let projects = scan_root_for_projects(&custom_skills_dir, &patterns, &central_dir);
+
+        assert_eq!(projects.len(), 1, "should find 1 project from custom dir");
+        assert_eq!(projects[0].skills.len(), 2);
+        assert_eq!(projects[0].skills[0].platform_id, "custom");
+        assert_eq!(projects[0].skills[1].platform_id, "custom");
     }
 
     #[tokio::test]
@@ -1136,6 +1505,9 @@ mod tests {
                 source: Some("copy".to_string()),
                 content: None,
                 scanned_at: now,
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             };
             db::upsert_skill(pool, &db_skill).await?;
         }
@@ -1277,6 +1649,9 @@ mod tests {
                 source: Some("symlink".to_string()),
                 content: None,
                 scanned_at: now.clone(),
+                source_ref: None,
+                source_path: None,
+                source_branch: None,
             };
             db::upsert_skill(pool, &db_skill).await?;
         }
@@ -1288,6 +1663,7 @@ mod tests {
             link_type: "symlink".to_string(),
             symlink_target: Some(skill.dir_path.clone()),
             created_at: now,
+            project_path: String::new(),
         };
         db::upsert_skill_installation(pool, &installation).await?;
 
@@ -2122,6 +2498,7 @@ mod tests {
             label: "test".to_string(),
             exists: true,
             enabled: true,
+            is_custom: false,
         };
 
         let found_ids = vec!["claude-code__project__real-skill".to_string()];
@@ -2172,6 +2549,7 @@ mod tests {
             label: "test".to_string(),
             exists: true,
             enabled: true,
+            is_custom: false,
         };
 
         let found_ids: Vec<String> = vec![];

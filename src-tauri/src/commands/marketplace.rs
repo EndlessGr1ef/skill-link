@@ -1026,6 +1026,9 @@ pub async fn install_from_skills_sh(
         source: Some(format!("skills.sh:{}", source)),
         content: None,
         scanned_at: chrono::Utc::now().to_rfc3339(),
+        source_ref: None,
+        source_path: Some(source_path),
+        source_branch: Some(repo.branch.clone()),
     };
     crate::db::upsert_skill(&state.db, &db_skill).await?;
 
