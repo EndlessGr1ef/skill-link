@@ -183,7 +183,18 @@
     "readOnlyDesc": "Plugin-installed copies are display-only here, so install, uninstall, and collection changes are unavailable.",
     "userManagedDesc": "This Claude user copy keeps the normal install-state and collection-management controls.",
     "readOnlyInstallBlocked": "Install and uninstall are unavailable for read-only plugin copies.",
-    "readOnlyCollectionsBlocked": "Collection management is unavailable for read-only plugin copies."
+    "readOnlyCollectionsBlocked": "Collection management is unavailable for read-only plugin copies.",
+    "noGitHubSource": "This skill is not linked to a GitHub repository. Link it to enable update tracking.",
+    "linkToGitHub": "Link to GitHub",
+    "linkToGitHubTitle": "Link Skill to GitHub",
+    "repoUrl": "GitHub Repository URL",
+    "pathInRepo": "Path in Repository (optional)",
+    "branch": "Branch (optional)",
+    "link": "Link",
+    "linkSuccess": "GitHub source linked successfully",
+    "linkError": "Failed to link GitHub source: {{error}}",
+    "unlinkSource": "Unlink source",
+    "unlinkSuccess": "Source unlinked"
   },
   "collection": {
     "edit": "Edit",

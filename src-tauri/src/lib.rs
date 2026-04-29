@@ -120,6 +120,7 @@ pub fn run() {
             // Updates
             commands::updates::check_skill_updates,
             commands::updates::update_skill,
+            commands::updates::link_skill_to_github,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

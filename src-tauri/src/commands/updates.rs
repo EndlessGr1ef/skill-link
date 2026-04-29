@@ -579,3 +579,69 @@ fn copy_dir_all(src: &PathBuf, dst: &PathBuf) -> Result<(), String> {
 
     Ok(())
 }
+
+// ─── Link Skill to GitHub ─────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct LinkSkillToGitHubRequest {
+    pub skill_id: String,
+    pub repo_url: String,
+    /// Path within the repository (e.g. "skills/my-skill"). Empty = repo root.
+    pub source_path: Option<String>,
+    /// Branch to track. None = default branch.
+    pub branch: Option<String>,
+}
+
+#[tauri::command]
+pub async fn link_skill_to_github(
+    state: State<'_, AppState>,
+    req: LinkSkillToGitHubRequest,
+) -> Result<db::Skill, String> {
+    let _skill = db::get_skill_by_id(&state.db, &req.skill_id)
+        .await?
+        .ok_or_else(|| format!("Skill '{}' not found", req.skill_id))?;
+
+    // Parse owner/repo from URL
+    let (owner, repo_name) = super::github_import::parse_github_url(&req.repo_url)?;
+
+    // Build source string
+    let source = format!("github:{}/{}", owner, repo_name);
+
+    // Resolve source_path and branch
+    let source_path = req.source_path.as_deref().filter(|p| !p.is_empty());
+    let source_branch = req.branch.as_deref().filter(|b| !b.is_empty());
+
+    // Verify repo is reachable and fetch latest commit SHA
+    let client = super::github_import::github_client()?;
+    let auth = super::github_import::github_direct_auth_from_settings(&state.db).await?;
+
+    let path_for_api = source_path.unwrap_or(".");
+    let latest_sha = fetch_latest_commit_sha(
+        &client,
+        &owner,
+        &repo_name,
+        path_for_api,
+        auth.as_deref(),
+    )
+    .await?;
+
+    let latest_sha = latest_sha.ok_or_else(|| {
+        "Could not verify repository or path. Please check the URL and path.".to_string()
+    })?;
+
+    // Persist to DB
+    db::update_skill_source(
+        &state.db,
+        &req.skill_id,
+        &source,
+        source_path,
+        source_branch,
+        Some(&latest_sha),
+    )
+    .await?;
+
+    // Return updated skill
+    db::get_skill_by_id(&state.db, &req.skill_id)
+        .await?
+        .ok_or_else(|| "Skill disappeared after update".to_string())
+}

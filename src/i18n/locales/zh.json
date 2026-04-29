@@ -183,7 +183,18 @@
     "readOnlyDesc": "插件安装的副本仅供查看，不能在这里安装、卸载或调整技能集。",
     "userManagedDesc": "此 Claude 用户副本会保留正常的安装状态与技能集管理能力。",
     "readOnlyInstallBlocked": "插件来源的只读副本不可安装或卸载。",
-    "readOnlyCollectionsBlocked": "插件来源的只读副本不可调整技能集。"
+    "readOnlyCollectionsBlocked": "插件来源的只读副本不可调整技能集。",
+    "noGitHubSource": "此技能未关联 GitHub 仓库。关联后即可启用更新检测。",
+    "linkToGitHub": "关联 GitHub",
+    "linkToGitHubTitle": "关联技能到 GitHub",
+    "repoUrl": "GitHub 仓库地址",
+    "pathInRepo": "仓库内路径（可选）",
+    "branch": "分支（可选）",
+    "link": "关联",
+    "linkSuccess": "GitHub 来源关联成功",
+    "linkError": "关联 GitHub 来源失败: {{error}}",
+    "unlinkSource": "解除关联",
+    "unlinkSuccess": "来源已解除关联"
   },
   "collection": {
     "edit": "编辑",

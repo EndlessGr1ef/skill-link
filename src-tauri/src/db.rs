@@ -1042,7 +1042,11 @@ pub async fn upsert_skill(pool: &DbPool, skill: &Skill) -> Result<(), String> {
            file_path      = excluded.file_path,
            canonical_path = COALESCE(excluded.canonical_path, skills.canonical_path),
            is_central     = MAX(skills.is_central, excluded.is_central),
-           source         = excluded.source,
+            source         = CASE
+                               WHEN skills.source LIKE 'github:%' OR skills.source LIKE 'skills.sh:%'
+                                 THEN skills.source
+                               ELSE excluded.source
+                             END,
            content        = excluded.content,
            scanned_at     = excluded.scanned_at,
            source_ref     = COALESCE(excluded.source_ref, skills.source_ref),
@@ -1345,6 +1349,29 @@ pub async fn update_skill_source_ref(
     .bind(source_ref)
     .bind(name)
     .bind(description)
+    .bind(skill_id)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+/// Update the remote source metadata for a skill (used by "Link to GitHub").
+pub async fn update_skill_source(
+    pool: &DbPool,
+    skill_id: &str,
+    source: &str,
+    source_path: Option<&str>,
+    source_branch: Option<&str>,
+    source_ref: Option<&str>,
+) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE skills SET source = ?, source_path = ?, source_branch = ?, source_ref = ? WHERE id = ?",
+    )
+    .bind(source)
+    .bind(source_path)
+    .bind(source_branch)
+    .bind(source_ref)
     .bind(skill_id)
     .execute(pool)
     .await

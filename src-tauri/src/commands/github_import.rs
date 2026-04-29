@@ -790,7 +790,7 @@ pub(crate) fn github_client() -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
-fn parse_github_url(url: &str) -> Result<(String, String), String> {
+pub(crate) fn parse_github_url(url: &str) -> Result<(String, String), String> {
     let trimmed = url.trim();
     let parsed =
         reqwest::Url::parse(trimmed).map_err(|_| "Invalid GitHub repository URL.".to_string())?;
@@ -1080,9 +1080,6 @@ pub(crate) fn collect_snapshot_source_files(
         .iter()
         .filter_map(|(path, bytes)| {
             let relative_path = if source_path == "." {
-                if path.contains('/') {
-                    return None;
-                }
                 path.clone()
             } else {
                 let prefix = format!("{}/", source_path.trim_matches('/'));

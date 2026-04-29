@@ -18,6 +18,7 @@ import {
   Lock,
   ArrowUpCircle,
   ExternalLink,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
@@ -27,6 +28,7 @@ import { useSkillDetailStore } from "@/stores/skillDetailStore";
 import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { usePlatformStore } from "@/stores/platformStore";
 import { CollectionPickerDialog } from "@/components/collection/CollectionPickerDialog";
+import { LinkGitHubDialog } from "@/components/skill/LinkGitHubDialog";
 import {
   AgentWithStatus,
   ClaudeSourceKind,
@@ -336,6 +338,7 @@ export function SkillDetailView({
   // Local UI state
   const [activeTab, setActiveTab] = useState<PreviewTab>("markdown");
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
+  const [isLinkGitHubOpen, setIsLinkGitHubOpen] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const addToCollectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const selectedFilePath = selectedFile?.path ?? null;
@@ -621,6 +624,23 @@ export function SkillDetailView({
       await checkUpdates([skillId]);
     } catch (err) {
       toast.error(t("central.updatesCheckError", { error: String(err) }));
+    }
+  }
+
+  async function handleLinkGitHub(repoUrl: string, sourcePath?: string, branch?: string) {
+    if (!skillId) return;
+    try {
+      await invoke("link_skill_to_github", {
+        req: { skillId, repoUrl, sourcePath, branch },
+      });
+      toast.success(t("detail.linkSuccess"));
+      // Reload detail to reflect new source
+      if (detailRequest) loadDetail(detailRequest);
+      // Also refresh update status
+      await checkUpdates([skillId]);
+    } catch (err) {
+      toast.error(t("detail.linkError", { error: String(err) }));
+      throw err;
     }
   }
 
@@ -1180,39 +1200,56 @@ export function SkillDetailView({
                   )}
 
                   {/* Source Info (GitHub) */}
-                  {githubSourceUrl && (
+                  {!detail.is_read_only && (
                     <section aria-label={t("detail.source")}>
                       <SectionLabel>{t("detail.source")}</SectionLabel>
-                      <div className="space-y-1.5">
-                        <a
-                          href={githubSourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
-                        >
-                          <ExternalLink className="size-3" />
-                          {detail.source!.slice("github:".length)}
-                        </a>
-                        {detail.source_branch && (
-                          <MetadataRow
-                            label={t("detail.sourceBranch", {
-                              defaultValue: i18n.language.startsWith("zh") ? "分支" : "Branch",
-                            })}
-                            value={detail.source_branch}
-                          />
-                        )}
-                        {!isUpdateAvailable && !skillUpdateStatus && !detail.is_read_only && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleCheckUpdateForSkill}
-                            className="gap-1 text-xs text-muted-foreground hover:text-foreground h-6 px-2"
+                      {githubSourceUrl ? (
+                        <div className="space-y-1.5">
+                          <a
+                            href={githubSourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
                           >
-                            <ArrowUpCircle className="size-3" />
-                            {t("central.checkUpdates")}
+                            <ExternalLink className="size-3" />
+                            {detail.source!.slice("github:".length)}
+                          </a>
+                          {detail.source_branch && (
+                            <MetadataRow
+                              label={t("detail.sourceBranch", {
+                                defaultValue: i18n.language.startsWith("zh") ? "分支" : "Branch",
+                              })}
+                              value={detail.source_branch}
+                            />
+                          )}
+                          {!isUpdateAvailable && !skillUpdateStatus && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCheckUpdateForSkill}
+                              className="gap-1 text-xs text-muted-foreground hover:text-foreground h-6 px-2"
+                            >
+                              <ArrowUpCircle className="size-3" />
+                              {t("central.checkUpdates")}
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border p-3 space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("detail.noGitHubSource")}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsLinkGitHubOpen(true)}
+                            className="gap-1.5 w-full"
+                          >
+                            <Link2 className="size-3.5" />
+                            {t("detail.linkToGitHub")}
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </section>
                   )}
                 </>
@@ -1230,6 +1267,15 @@ export function SkillDetailView({
           skillId={skillId}
           currentCollectionIds={skillCollections.map((collection) => collection.id)}
           onAdded={handleCollectionAdded}
+        />
+      )}
+
+      {/* Link to GitHub Dialog */}
+      {skillId && (
+        <LinkGitHubDialog
+          open={isLinkGitHubOpen}
+          onOpenChange={setIsLinkGitHubOpen}
+          onLink={handleLinkGitHub}
         />
       )}
     </div>
