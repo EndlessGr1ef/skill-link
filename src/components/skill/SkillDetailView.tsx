@@ -339,6 +339,7 @@ export function SkillDetailView({
   const [activeTab, setActiveTab] = useState<PreviewTab>("markdown");
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [isLinkGitHubOpen, setIsLinkGitHubOpen] = useState(false);
+  const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const addToCollectionButtonRef = useRef<HTMLButtonElement | null>(null);
   const selectedFilePath = selectedFile?.path ?? null;
@@ -1033,34 +1034,112 @@ export function SkillDetailView({
                     <SectionLabel>{t("detail.metadata")}</SectionLabel>
                     <div className="space-y-2.5">
                       <MetadataRow label={t("detail.filePath")} value={detail.file_path} />
-                      {detail.dir_path && (
-                        <MetadataRow
-                          label={t("detail.directoryPath", {
-                            defaultValue: i18n.language.startsWith("zh") ? "目录路径" : "Directory path",
-                          })}
-                          value={detail.dir_path}
-                        />
+                      {isMetadataExpanded && (
+                        <>
+                          {detail.dir_path && (
+                            <MetadataRow
+                              label={t("detail.directoryPath", {
+                                defaultValue: i18n.language.startsWith("zh") ? "目录路径" : "Directory path",
+                              })}
+                              value={detail.dir_path}
+                            />
+                          )}
+                          {detail.canonical_path && (
+                            <MetadataRow label={t("detail.canonical")} value={detail.canonical_path} />
+                          )}
+                          {detail.source_root && (
+                            <MetadataRow
+                              label={t("detail.sourceRoot", {
+                                defaultValue: i18n.language.startsWith("zh") ? "来源根目录" : "Source root",
+                              })}
+                              value={detail.source_root}
+                            />
+                          )}
+                          {!detail.source_kind && detail.source && (
+                            <MetadataRow label={t("detail.source")} value={detail.source} />
+                          )}
+                          <MetadataRow
+                            label={t("detail.scannedAt")}
+                            value={new Date(detail.scanned_at).toLocaleString()}
+                          />
+                        </>
                       )}
-                      {detail.canonical_path && (
-                        <MetadataRow label={t("detail.canonical")} value={detail.canonical_path} />
-                      )}
-                      {detail.source_root && (
-                        <MetadataRow
-                          label={t("detail.sourceRoot", {
-                            defaultValue: i18n.language.startsWith("zh") ? "来源根目录" : "Source root",
-                          })}
-                          value={detail.source_root}
-                        />
-                      )}
-                      {!detail.source_kind && detail.source && (
-                        <MetadataRow label={t("detail.source")} value={detail.source} />
-                      )}
-                      <MetadataRow
-                        label={t("detail.scannedAt")}
-                        value={new Date(detail.scanned_at).toLocaleString()}
-                      />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsMetadataExpanded(!isMetadataExpanded)}
+                      className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground/70 hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      {isMetadataExpanded ? (
+                        <ChevronDown className="size-3" />
+                      ) : (
+                        <ChevronRight className="size-3" />
+                      )}
+                      {isMetadataExpanded ? t("detail.showLess") : t("detail.showMore")}
+                    </button>
                   </section>
+
+                  {/* Source Info (GitHub) — placed after Metadata for logical grouping */}
+                  {!detail.is_read_only && (
+                    <section aria-label={t("detail.source")}>
+                      <SectionLabel>{t("detail.source")}</SectionLabel>
+                      {githubSourceUrl ? (
+                        <div className="space-y-1.5">
+                          <a
+                            href={githubSourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+                          >
+                            <ExternalLink className="size-3" />
+                            {detail.source!.slice("github:".length)}
+                          </a>
+                          {detail.source_branch && (
+                            <MetadataRow
+                              label={t("detail.sourceBranch", {
+                                defaultValue: i18n.language.startsWith("zh") ? "分支" : "Branch",
+                              })}
+                              value={detail.source_branch}
+                            />
+                          )}
+                          {skillUpdateStatus?.type === "UpToDate" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                              <ArrowUpCircle className="size-3" />
+                              {t("detail.upToDate", {
+                                defaultValue: i18n.language.startsWith("zh") ? "已是最新" : "Up to date",
+                              })}
+                            </span>
+                          )}
+                          {!isUpdateAvailable && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleCheckUpdateForSkill}
+                              className="gap-1 text-xs text-muted-foreground hover:text-foreground h-6 px-2"
+                            >
+                              <RefreshCw className="size-3" />
+                              {t("central.checkUpdates")}
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed border-border p-3 space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("detail.noGitHubSource")}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsLinkGitHubOpen(true)}
+                            className="gap-1.5 w-full"
+                          >
+                            <Link2 className="size-3.5" />
+                            {t("detail.linkToGitHub")}
+                          </Button>
+                        </div>
+                      )}
+                    </section>
+                  )}
 
                   {/* Install Status — compact icon grid */}
                   <section aria-label={t("detail.installStatusRegion")}>
@@ -1196,60 +1275,6 @@ export function SkillDetailView({
                             : t("central.updateNow", { defaultValue: "Update now" })}
                         </Button>
                       </div>
-                    </section>
-                  )}
-
-                  {/* Source Info (GitHub) */}
-                  {!detail.is_read_only && (
-                    <section aria-label={t("detail.source")}>
-                      <SectionLabel>{t("detail.source")}</SectionLabel>
-                      {githubSourceUrl ? (
-                        <div className="space-y-1.5">
-                          <a
-                            href={githubSourceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
-                          >
-                            <ExternalLink className="size-3" />
-                            {detail.source!.slice("github:".length)}
-                          </a>
-                          {detail.source_branch && (
-                            <MetadataRow
-                              label={t("detail.sourceBranch", {
-                                defaultValue: i18n.language.startsWith("zh") ? "分支" : "Branch",
-                              })}
-                              value={detail.source_branch}
-                            />
-                          )}
-                          {!isUpdateAvailable && !skillUpdateStatus && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleCheckUpdateForSkill}
-                              className="gap-1 text-xs text-muted-foreground hover:text-foreground h-6 px-2"
-                            >
-                              <ArrowUpCircle className="size-3" />
-                              {t("central.checkUpdates")}
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="rounded-lg border border-dashed border-border p-3 space-y-3">
-                          <p className="text-xs text-muted-foreground">
-                            {t("detail.noGitHubSource")}
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setIsLinkGitHubOpen(true)}
-                            className="gap-1.5 w-full"
-                          >
-                            <Link2 className="size-3.5" />
-                            {t("detail.linkToGitHub")}
-                          </Button>
-                        </div>
-                      )}
                     </section>
                   )}
                 </>

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::State;
 
 use crate::path_utils::{app_data_dir, central_skills_dir};
@@ -583,6 +583,7 @@ fn copy_dir_all(src: &PathBuf, dst: &PathBuf) -> Result<(), String> {
 // ─── Link Skill to GitHub ─────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LinkSkillToGitHubRequest {
     pub skill_id: String,
     pub repo_url: String,
@@ -592,12 +593,72 @@ pub struct LinkSkillToGitHubRequest {
     pub branch: Option<String>,
 }
 
+/// Fetch a single file from GitHub Contents API.
+/// Returns the decoded file content, or None if the file doesn't exist (404).
+async fn fetch_remote_file_content(
+    client: &reqwest::Client,
+    owner: &str,
+    repo_name: &str,
+    file_path: &str,
+    branch: Option<&str>,
+    auth: Option<&str>,
+) -> Result<Option<String>, String> {
+    let mut url = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        owner, repo_name, file_path
+    );
+    if let Some(b) = branch {
+        url = format!("{}?ref={}", url, b);
+    }
+
+    let response = super::github_import::send_with_auth_fallback(client, &url, auth)
+        .await
+        .map_err(|e| format!("Failed to fetch remote file: {}", e))?;
+
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+    if !response.status().is_success() {
+        return Ok(None);
+    }
+
+    let body: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Contents API response: {}", e))?;
+
+    // Contents API returns base64-encoded "content" field
+    let encoded = body
+        .get("content")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    use base64::Engine;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded.replace('\n', ""))
+        .map_err(|e| format!("Failed to decode base64 content: {}", e))?;
+
+    String::from_utf8(decoded)
+        .map(Some)
+        .map_err(|e| format!("Remote file is not valid UTF-8: {}", e))
+}
+
+/// Normalize text for comparison: trim trailing whitespace per line + trailing newlines.
+fn normalize_for_comparison(s: &str) -> String {
+    s.lines()
+        .map(|line| line.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim_end()
+        .to_string()
+}
+
 #[tauri::command]
 pub async fn link_skill_to_github(
     state: State<'_, AppState>,
     req: LinkSkillToGitHubRequest,
 ) -> Result<db::Skill, String> {
-    let _skill = db::get_skill_by_id(&state.db, &req.skill_id)
+    let skill = db::get_skill_by_id(&state.db, &req.skill_id)
         .await?
         .ok_or_else(|| format!("Skill '{}' not found", req.skill_id))?;
 
@@ -629,6 +690,34 @@ pub async fn link_skill_to_github(
         "Could not verify repository or path. Please check the URL and path.".to_string()
     })?;
 
+    // Compare remote SKILL.md with local to decide source_ref
+    let skill_md_path = source_path
+        .map(|p| format!("{}/SKILL.md", p.trim_matches('/')))
+        .unwrap_or_else(|| "SKILL.md".to_string());
+
+    let remote_content = fetch_remote_file_content(
+        &client,
+        &owner,
+        &repo_name,
+        &skill_md_path,
+        source_branch,
+        auth.as_deref(),
+    )
+    .await?;
+
+    let local_content = std::fs::read_to_string(Path::new(&skill.file_path)).ok();
+
+    // If remote and local SKILL.md match, mark as up-to-date; otherwise leave source_ref
+    // empty so that check_skill_updates reports UpdateAvailable
+    let source_ref = match (remote_content, local_content) {
+        (Some(remote), Some(local))
+            if normalize_for_comparison(&remote) == normalize_for_comparison(&local) =>
+        {
+            Some(latest_sha.clone())
+        }
+        _ => None,
+    };
+
     // Persist to DB
     db::update_skill_source(
         &state.db,
@@ -636,7 +725,7 @@ pub async fn link_skill_to_github(
         &source,
         source_path,
         source_branch,
-        Some(&latest_sha),
+        source_ref.as_deref(),
     )
     .await?;
 
