@@ -1,6 +1,6 @@
 # Skill Link
 
-Skill Link — Link your AI agent skills. Browse, preview, and install from skill.sh, official directories, or GitHub — all from one desktop app.
+Skill Link is a local-first desktop app for keeping AI agent skills in one central library, then linking them into the tools and projects where you actually use them.
 
 [English](README.md) | [中文文档](README_CN.md)
 
@@ -14,42 +14,46 @@ Skill Link — Link your AI agent skills. Browse, preview, and install from skil
 >
 > Skill Link is an independent, unofficial desktop application for managing local skill directories and importing public skill metadata. It is not affiliated with, endorsed by, or sponsored by Anthropic, OpenAI, GitHub, MiniMax, or any other supported platform, publisher, or trademark owner.
 
-## Overview
+## Why It Exists
 
-Skill Link follows the [Agent Skills](https://github.com/anthropics/agent-skills) open pattern and uses `~/.agents/skills/` as the canonical central directory. Skills can then be linked to individual platforms through symlinks, so one source of truth can drive multiple AI coding tools.
+AI coding tools now share a simple pattern: a skill is a folder with a `SKILL.md` file and optional supporting files. The problem is that every tool puts those folders somewhere different.
 
-## What Skill Link Adds
+Skill Link treats `~/.agents/skills/` as the canonical source of truth. From there, it can symlink or copy skills into Claude Code, Codex CLI, Cursor, OpenCode, Gemini CLI, Kiro, Windsurf, Lobster-family tools, custom platforms, and project-local skill folders.
 
-Compared to the upstream skills-manage, Skill Link brings:
+## What You Can Do
 
-- **skill.sh integration** — search, browse directory listings, resolve install URLs, and install skills directly from [skill.sh](https://skill.sh) without leaving the app.
-- **Skill file tree** — inspect every file inside a skill with syntax-highlighted preview, available in both the full detail page and the Skill Market detail drawer.
-- **Skill Market source unification** — three parallel sources (recommended, official publisher directories, and skill.sh) under one tabbed interface.
+- Build one central skill library under `~/.agents/skills/`.
+- Install or uninstall skills across supported platforms with platform icon toggles.
+- Install central skills into project-local skill directories or any custom target path.
+- Import skills from GitHub repositories, official directories, skill.sh, or local project scans.
+- Track GitHub-backed skills, check for updates, and apply one-click updates with backups.
+- Link existing local skills back to a GitHub source for future update checks.
+- Browse every file inside a skill, not only `SKILL.md`.
+- Organize reusable sets of skills as collections and batch-install them.
+- Keep metadata, settings, collections, and scan results in a local SQLite database.
 
-## Highlights
+## Recent Direction
 
-### Search & Install
+Recent work has moved Skill Link from a basic cross-platform installer into a fuller skill lifecycle tool:
 
-- **skill.sh** — search skills.sh, browse directory layouts, and install with one click.
-- **Official directory** — browse publisher-verified skill directories; search and filter across all listings.
-- **GitHub import** — import any public GitHub repository as a skill source with authenticated requests and retry fallback.
-- **Discover scan** — find unmanaged project-level skills on local disk and centralize them.
-- **Custom scan directories** — install skills from user-defined paths.
+- **Project installs** - central skills can now be linked into a selected project using each platform's project skill directory convention.
+- **Custom path installs** - a skill can be linked or copied into an arbitrary target directory when a tool is not built in yet.
+- **GitHub update flow** - imported skills remember source repo, source path, branch/ref, and installed commit, so Skill Link can compare against the latest upstream commit.
+- **One-click updates** - updateable skills are refreshed from their source with validation, local backups, and rollback behavior if activation fails.
+- **Link local skill to GitHub** - older or manually created skills can be connected to a GitHub source without re-importing.
+- **Safer central deletion** - central skill removal also cleans tracked installs while avoiding untracked real directories.
+- **Cleaner detail view** - metadata is collapsible, GitHub source information is more prominent, and duplicate/read-only sources are easier to compare.
 
-### Inspect
+## Skill Sources
 
-- **Skill file tree** — expandable directory tree showing every file in a skill; click any file for syntax-highlighted Markdown or source preview.
-- **Markdown preview** — rendered SKILL.md with frontmatter metadata sidebar.
-- **AI explanation** — automatically generate a plain-English summary of what a skill does.
-- **Raw source** — read the original SKILL.md and supporting files directly.
-
-### Manage
-
-- **Central skill library** — single source of truth under `~/.agents/skills/`.
-- **Per-platform install** — symlink or copy skills to any supported AI coding tool.
-- **Collections** — organize skills into groups, batch-install, or export/import as JSON.
-- **Fast search** — deferred queries, lazy indexing, and list virtualization for large libraries.
-- **Bilingual UI** — English and Chinese with Catppuccin 4-flavor palette and accent colors.
+| Source | What it is for |
+|--------|----------------|
+| Central library | Existing skills in `~/.agents/skills/` |
+| GitHub import | Public repositories, including root-level skills and `skills/` directories |
+| skill.sh | Search skill.sh, inspect remote directories, and install directly |
+| Official directories | Publisher/registry-style skill listings |
+| Project scan | Find unmanaged `SKILL.md` folders on disk and centralize them |
+| Custom paths | Bring in skills from user-selected directories |
 
 ## Screenshots
 
@@ -57,31 +61,23 @@ Compared to the upstream skills-manage, Skill Link brings:
 
 ![Central skills library view](images/01.png)
 
-### Skill file tree — browse every file inside a skill
+### Skill detail and file tree
 
-![Skill file tree](images/07.png)
+![Skill detail and file tree](images/05.png)
 
-### Review installed skills on a specific platform
+### Platform skill view
 
 ![Platform skill view](images/06.png)
 
-### Search and install from skill.sh
+### Find Skill
 
-![skill.sh integration](images/08.png)
+![Find Skill](images/04.png)
 
-### Browse Skill Market publishers and skills
-
-![Skill Market view](images/04.png)
-
-### Import skills from a GitHub repository
+### GitHub import
 
 ![GitHub repository import wizard](images/02.png)
 
-### Organize reusable collections
-
-![Skill collections view](images/05.png)
-
-### Discover local project skill libraries
+### Project skill discovery
 
 ![Discover project skill libraries](images/03.png)
 
@@ -94,13 +90,10 @@ Compared to the upstream skills-manage, Skill Link brings:
 ### macOS Unsigned Build
 
 The current public macOS build is not notarized. If macOS shows a warning such as:
-
-![macOS damaged app warning](images/app-damaged.png)
-
 - `"Skill Link" is damaged and can't be opened`
 - `"Skill Link" cannot be opened because Apple could not verify it`
 
-the app is usually not actually corrupted; it is being blocked by Gatekeeper quarantine on an unsigned build.
+the app is usually not corrupted; it is being blocked by Gatekeeper quarantine on an unsigned build.
 
 After moving the app to `/Applications`, run:
 
@@ -112,95 +105,120 @@ Then launch the app again from Finder. If your app is stored somewhere else, rep
 
 ## Supported Platforms
 
-| Category | Platform | Skills Directory |
-|----------|----------|-----------------|
-| Coding | Claude Code | `~/.claude/skills/` |
-| Coding | Codex CLI | `~/.agents/skills/` |
-| Coding | Cursor | `~/.cursor/skills/` |
-| Coding | Gemini CLI | `~/.gemini/skills/` |
-| Coding | Trae | `~/.trae/skills/` |
-| Coding | Factory Droid | `~/.factory/skills/` |
-| Coding | Junie | `~/.junie/skills/` |
-| Coding | Qwen | `~/.qwen/skills/` |
-| Coding | Trae CN | `~/.trae-cn/skills/` |
-| Coding | Windsurf | `~/.windsurf/skills/` |
-| Coding | Qoder | `~/.qoder/skills/` |
-| Coding | Augment | `~/.augment/skills/` |
-| Coding | OpenCode | `~/.opencode/skills/` |
-| Coding | KiloCode | `~/.kilocode/skills/` |
-| Coding | OB1 | `~/.ob1/skills/` |
-| Coding | Amp | `~/.amp/skills/` |
-| Coding | Kiro | `~/.kiro/skills/` |
-| Coding | CodeBuddy | `~/.codebuddy/skills/` |
-| Coding | Hermes | `~/.hermes/skills/` |
-| Coding | Copilot | `~/.copilot/skills/` |
-| Coding | Aider | `~/.aider/skills/` |
-| Lobster | OpenClaw (开爪) | `~/.openclaw/skills/` |
-| Lobster | QClaw (千爪) | `~/.qclaw/skills/` |
-| Lobster | EasyClaw (简爪) | `~/.easyclaw/skills/` |
-| Lobster | EasyClaw V2 | `~/.easyclaw-20260322-01/skills/` |
-| Lobster | AutoClaw | `~/.openclaw-autoclaw/skills/` |
-| Lobster | WorkBuddy (打工搭子) | `~/.workbuddy/skills-marketplace/skills/` |
-| Central | Central Skills | `~/.agents/skills/` |
-
-> Note: Claude Code also surfaces Skill Market plugin directories under `~/.claude/plugins/marketplaces/*` as read-only rows in the Claude view. Those entries are display-only and are not managed like native skills in `~/.claude/skills/`.
+| Category | Platform | Global Skills Directory | Project Directory |
+|----------|----------|-------------------------|-------------------|
+| Coding | Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| Coding | Codex CLI | `~/.agents/skills/` | `.agents/skills/` |
+| Coding | Cursor | `~/.cursor/skills/` | `.cursor/skills/` |
+| Coding | Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` |
+| Coding | Trae | `~/.trae/skills/` | `.trae/skills/` |
+| Coding | Factory Droid | `~/.factory/skills/` | `.factory/skills/` |
+| Coding | Junie | `~/.junie/skills/` | `.junie/skills/` |
+| Coding | Qwen | `~/.qwen/skills/` | `.qwen/skills/` |
+| Coding | Trae CN | `~/.trae-cn/skills/` | `.trae-cn/skills/` |
+| Coding | Windsurf | `~/.windsurf/skills/` | `.windsurf/skills/` |
+| Coding | Qoder | `~/.qoder/skills/` | `.qoder/skills/` |
+| Coding | Augment | `~/.augment/skills/` | `.augment/skills/` |
+| Coding | OpenCode | `~/.opencode/skills/` | `.opencode/skills/` |
+| Coding | KiloCode | `~/.kilocode/skills/` | `.kilocode/skills/` |
+| Coding | OB1 | `~/.ob1/skills/` | `.ob1/skills/` |
+| Coding | Amp | `~/.amp/skills/` | `.amp/skills/` |
+| Coding | Kiro | `~/.kiro/skills/` | `.kiro/skills/` |
+| Coding | CodeBuddy | `~/.codebuddy/skills/` | `.codebuddy/skills/` |
+| Coding | Copilot | `~/.copilot/skills/` | `.copilot/skills/` |
+| Coding | Aider | `~/.aider/skills/` | `.aider/skills/` |
+| Lobster | Hermes | `~/.hermes/skills/` | - |
+| Lobster | OpenClaw | `~/.openclaw/skills/` | - |
+| Lobster | QClaw | `~/.qclaw/skills/` | - |
+| Lobster | EasyClaw | `~/.easyclaw/skills/` | - |
+| Lobster | AutoClaw | `~/.openclaw-autoclaw/skills/` | - |
+| Lobster | WorkBuddy | `~/.workbuddy/skills-marketplace/skills/` | - |
+| Central | Central Skills | `~/.agents/skills/` | - |
 
 Custom platforms can be added through Settings.
 
+> Note: Claude Code can also surface Find Skill plugin directories under `~/.claude/plugins/marketplaces/*` as read-only rows in the Claude view. Those entries are display-only and are not managed like native skills in `~/.claude/skills/`.
+
 ## Privacy & Security
 
-- **Local-first storage** — metadata, collections, scan results, settings, and cached AI explanations stay in `~/.skill-link/db.sqlite` or the local skill directories you manage.
-- **No telemetry** — the app does not include analytics, crash reporting, or usage tracking.
-- **Network access is feature-driven** — outbound requests only happen when you explicitly use Skill Market sync/download, GitHub import, or AI explanation generation.
-- **Credentials are stored locally** — GitHub PAT and AI API keys are kept in the local SQLite settings table and are not encrypted at rest by the app.
-- Never post real secrets in issues, pull requests, screenshots, or logs.
+- **Local-first storage** - metadata, collections, scan results, settings, update cache, and AI explanations stay in `~/.skill-link/db.sqlite` or in the local skill directories you manage.
+- **No telemetry** - the app does not include analytics, crash reporting, or usage tracking.
+- **Feature-driven network access** - outbound requests happen when you use Find Skill sync/download, skill.sh search/install, GitHub import/update checks, or AI explanation generation.
+- **Local credentials** - GitHub PAT and AI API keys are stored in the local SQLite settings table and are not encrypted at rest by the app.
+- **Update backups** - GitHub skill updates create local backups under `~/.skill-link/backups`.
+
+Never post real secrets in issues, pull requests, screenshots, or logs.
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Desktop framework | Tauri v2 |
-| Frontend | React 19, TypeScript, Tailwind CSS 4 |
-| UI components | shadcn/ui, Lucide icons |
-| State management | Zustand |
-| Markdown | react-markdown |
+|-------|------------|
+| Desktop | Tauri v2 |
+| Frontend | React 18.3.1, TypeScript, Tailwind CSS 4 |
+| UI | shadcn/ui, Base UI, Lucide icons, LobeHub icons |
+| State | Zustand |
+| Markdown | react-markdown, remark-gfm, gray-matter |
 | i18n | react-i18next, i18next-browser-languagedetector |
-| Theming | Catppuccin 4-flavor palette |
-| Backend | Rust (serde, sqlx, chrono, uuid) |
-| Database | SQLite via sqlx (WAL mode) |
+| Backend | Rust, SQLx, serde, reqwest |
+| Database | SQLite via SQLx, WAL mode |
 | Routing | react-router-dom v7 |
+| Tests | Vitest, React Testing Library, Cargo tests |
 
 ## Development
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (LTS)
-- [pnpm](https://pnpm.io/)
-- [Rust toolchain](https://rustup.rs/) (stable)
+- [Node.js](https://nodejs.org/) 20 or newer
+- [pnpm](https://pnpm.io/) 10.12.3 or newer
+- [Rust toolchain](https://rustup.rs/) stable
 - Tauri v2 system dependencies: <https://v2.tauri.app/start/prerequisites/>
 
-### Install Dependencies
+### Install
 
 ```bash
 pnpm install
 ```
 
-### Run in Development
+### Run
+
+```bash
+pnpm dev
+```
+
+The frontend-only Vite server runs on port `24200`.
+
+For the full desktop app:
 
 ```bash
 pnpm tauri dev
 ```
 
-The Vite dev server runs on port `24200`.
+`pnpm tauri dev` already starts Vite through `src-tauri/tauri.conf.json`, so do not start a second Vite server.
 
-### Validation
+### Validate
+
+Frontend CI order:
 
 ```bash
-pnpm test
 pnpm typecheck
 pnpm lint
-cd src-tauri && cargo test
-cd src-tauri && cargo clippy -- -D warnings
+pnpm test
+```
+
+Backend CI order:
+
+```bash
+cd src-tauri
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+```
+
+Focused examples:
+
+```bash
+pnpm test -- src/test/skillStore.test.ts
+cd src-tauri && cargo test db::
 ```
 
 ## Project Structure
@@ -209,18 +227,20 @@ cd src-tauri && cargo clippy -- -D warnings
 skill-link/
 ├── src/                        # React frontend
 │   ├── components/             # UI components
+│   ├── data/                   # Built-in marketplace and provider data
 │   ├── i18n/                   # Locale files and i18n setup
 │   ├── lib/                    # Frontend helpers
 │   ├── pages/                  # Route views
-│   ├── stores/                 # Zustand stores
+│   ├── stores/                 # Zustand stores and Tauri IPC boundaries
 │   ├── test/                   # Vitest + RTL tests
 │   └── types/                  # Shared TypeScript types
 ├── src-tauri/                  # Rust backend
 │   └── src/
-│       ├── commands/           # Tauri IPC handlers
+│       ├── commands/           # Tauri IPC handlers by domain
 │       ├── db.rs               # SQLite schema, migrations, queries
-│       ├── lib.rs              # Tauri app setup
+│       ├── lib.rs              # Tauri setup and command registration
 │       └── main.rs             # Desktop entry point
+├── images/                     # README screenshots
 ├── public/                     # Static assets
 ├── CHANGELOG.md                # English changelog
 ├── CHANGELOG.zh.md             # Chinese changelog
@@ -229,7 +249,17 @@ skill-link/
 
 ## Database
 
-The SQLite database lives at `~/.skill-link/db.sqlite` and is initialized automatically on first launch.
+Skill Link initializes SQLite automatically at:
+
+```text
+~/.skill-link/db.sqlite
+```
+
+The central skill source remains:
+
+```text
+~/.agents/skills/
+```
 
 ## Changelog
 

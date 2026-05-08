@@ -1,6 +1,6 @@
 # Skill Link
 
-Skill Link — 链接你的 AI Agent 技能。从 skill.sh、官方目录、GitHub 统一浏览、预览和安装技能。
+Skill Link 是一个本地优先的桌面应用，用来把 AI Agent 技能集中管理在一个中央库里，再按需链接到你实际使用的工具和项目中。
 
 [English](README.md) | [中文文档](README_CN.md)
 
@@ -14,41 +14,46 @@ Skill Link — 链接你的 AI Agent 技能。从 skill.sh、官方目录、GitH
 >
 > Skill Link 是一个独立的非官方桌面应用，用于管理本地 skill 目录并导入公开 skill 元数据。它与 Anthropic、OpenAI、GitHub、MiniMax 或其他受支持平台、发布方、商标所有者均无隶属、背书或赞助关系。
 
-## 项目简介
+## 为什么需要它
 
-Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的开放模式，使用 `~/.agents/skills/` 作为中央 canonical 目录，再通过符号链接把 skill 安装到各个平台，让同一份 skill 成为多个 AI coding 工具的单一事实来源。
+越来越多 AI 编码工具开始采用同一种模式：一个 skill 是包含 `SKILL.md` 和可选配套文件的目录。麻烦在于，每个工具读取 skill 的位置都不一样。
 
-## Skill Link 新增能力
+Skill Link 使用 `~/.agents/skills/` 作为 canonical 中央目录，再把其中的技能通过符号链接或复制安装到 Claude Code、Codex CLI、Cursor、OpenCode、Gemini CLI、Kiro、Windsurf、Lobster 系工具、自定义平台，以及项目级 skill 目录。
 
-相比上游 skills-manage，Skill Link 在以下方面做了增强：
+## 你可以做什么
 
-- **skill.sh 集成** — 在应用内直接搜索 skill.sh、浏览远程目录结构、解析安装地址并一键安装，无需离开应用。
-- **技能文件树** — 在 Skill 详情页和 Skill Market 详情抽屉中均可展开查看每个 skill 的内部文件结构，点击任意文件显示语法高亮预览。
-- **Skill Market 来源统一** — 推荐 / 官方源目录 / skill.sh 三 Tab 并存于同一 Skill Market 页面。
+- 在 `~/.agents/skills/` 建立唯一的中央技能库。
+- 通过平台图标快速安装或卸载 skill。
+- 把中央 skill 安装到项目级 skill 目录，或任意自定义目标路径。
+- 从 GitHub 仓库、官方目录、skill.sh、本地项目扫描结果导入 skill。
+- 追踪 GitHub 来源 skill，检测上游更新，并一键更新到最新版本。
+- 给已有本地 skill 绑定 GitHub 来源，之后继续参与更新检测。
+- 浏览 skill 内部的完整文件树，而不只是 `SKILL.md`。
+- 用集合组织可复用 skill 组合，并批量安装。
+- 将元数据、设置、集合、扫描结果保存在本地 SQLite 数据库中。
 
-## 核心能力
+## 近期方向
 
-### 搜索与安装
+最近一段时间的改动让 Skill Link 从“跨平台安装器”进一步变成了完整的 skill 生命周期工具：
 
-- **skill.sh** — 搜索技能、浏览目录布局、一键安装到中央目录。
-- **官方源目录** — 浏览经过 publisher 验证的技能目录，支持搜索筛选。
-- **GitHub 导入** — 将任意公开 GitHub 仓库作为技能来源，支持鉴权请求与重试回退。
-- **扫描发现（Discover）** — 在磁盘上定位未管理的项目级技能并纳入中央管理。
-- **自定义扫描目录** — 从用户定义的路径安装技能。
+- **项目安装** - 中央 skill 可以按平台约定安装进指定项目的 project skill 目录。
+- **自定义路径安装** - 对尚未内置的平台，也可以把 skill 链接或复制到任意目标目录。
+- **GitHub 更新流** - 导入的 skill 会记录来源仓库、来源路径、分支/ref、安装时 commit，用来和上游最新 commit 对比。
+- **一键更新** - 可更新 skill 会从来源重新拉取，更新前做校验并创建本地备份，激活失败时回滚。
+- **本地 skill 绑定 GitHub** - 旧版本导入或手动创建的 skill 可以补充 GitHub 来源，无需重新导入。
+- **更安全的中央删除** - 删除中央 skill 时会清理已跟踪安装，同时避免误删未跟踪的真实目录。
+- **更清晰的详情页** - metadata 可折叠，GitHub 来源信息更醒目，重复/只读来源更容易对比。
 
-### 检视与预览
+## Skill 来源
 
-- **技能文件树** — 可展开的目录树展示 skill 内全部文件；点击任意文件获取语法高亮预览。
-- **Markdown 预览** — 渲染的 SKILL.md 文本，搭配 frontmatter 元数据侧栏。
-- **AI 解释** — 自动生成技能功能的中文摘要。
-- **原始源码** — 直接阅读 SKILL.md 及其配套文件。
-
-### 管理
-
-- **中央技能库** — `~/.agents/skills/` 单一事实来源。
-- **按平台安装** — 通过符号链接或复制方式安装到任意支持的 AI 编码工具。
-- **技能集合** — 将技能分组管理，支持批量安装和 JSON 导入/导出。
-- **快速搜索** — 延迟查询、懒加载索引和虚拟列表，应对大规模技能库。
+| 来源 | 用途 |
+|------|------|
+| 中央技能库 | 管理 `~/.agents/skills/` 中已有技能 |
+| GitHub 导入 | 导入公开仓库，包括根目录 skill 和 `skills/` 子目录 |
+| skill.sh | 搜索 skill.sh、查看远程目录并直接安装 |
+| 官方目录 | 浏览 registry / publisher 风格的技能列表 |
+| 项目扫描 | 在磁盘上发现未管理的 `SKILL.md` 并纳入中央管理 |
+| 自定义路径 | 从用户选择的目录导入或安装 skill |
 
 ## 项目截图
 
@@ -56,31 +61,23 @@ Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的
 
 ![中央技能库视图](images/01.png)
 
-### 技能文件树 — 浏览 skill 内的每个文件
+### Skill 详情与文件树
 
-![技能文件树](images/07.png)
+![Skill 详情与文件树](images/05.png)
 
-### 查看特定平台的已安装技能
+### 平台技能视图
 
 ![平台技能视图](images/06.png)
 
-### 从 skill.sh 搜索和安装
+### Find Skill
 
-![skill.sh 集成](images/08.png)
+![Find Skill](images/04.png)
 
-### 浏览 Skill Market 发布者与技能
-
-![技能市场视图](images/04.png)
-
-### 从 GitHub 仓库导入技能
+### GitHub 导入
 
 ![GitHub 仓库导入向导](images/02.png)
 
-### 管理可复用技能集合
-
-![技能集合视图](images/05.png)
-
-### 扫描本地项目技能库
+### 项目技能发现
 
 ![项目技能库发现页](images/03.png)
 
@@ -93,8 +90,6 @@ Skill Link 遵循 [Agent Skills](https://github.com/anthropics/agent-skills) 的
 ### macOS 未签名构建说明
 
 当前公开发布的 macOS 安装包还没有 notarization。如果 macOS 提示：
-
-![macOS 应用损坏警告](images/app-damaged.png)
 
 - `"Skill Link" is damaged and can't be opened`
 - `"Skill Link" cannot be opened because Apple could not verify it`
@@ -111,69 +106,72 @@ xattr -dr com.apple.quarantine "/Applications/Skill Link.app"
 
 ## 支持的平台
 
-| 类别 | 平台 | Skills 目录 |
-|------|------|------------|
-| Coding | Claude Code | `~/.claude/skills/` |
-| Coding | Codex CLI | `~/.agents/skills/` |
-| Coding | Cursor | `~/.cursor/skills/` |
-| Coding | Gemini CLI | `~/.gemini/skills/` |
-| Coding | Trae | `~/.trae/skills/` |
-| Coding | Factory Droid | `~/.factory/skills/` |
-| Coding | Junie | `~/.junie/skills/` |
-| Coding | Qwen | `~/.qwen/skills/` |
-| Coding | Trae CN | `~/.trae-cn/skills/` |
-| Coding | Windsurf | `~/.windsurf/skills/` |
-| Coding | Qoder | `~/.qoder/skills/` |
-| Coding | Augment | `~/.augment/skills/` |
-| Coding | OpenCode | `~/.opencode/skills/` |
-| Coding | KiloCode | `~/.kilocode/skills/` |
-| Coding | OB1 | `~/.ob1/skills/` |
-| Coding | Amp | `~/.amp/skills/` |
-| Coding | Kiro | `~/.kiro/skills/` |
-| Coding | CodeBuddy | `~/.codebuddy/skills/` |
-| Coding | Hermes | `~/.hermes/skills/` |
-| Coding | Copilot | `~/.copilot/skills/` |
-| Coding | Aider | `~/.aider/skills/` |
-| Lobster | OpenClaw（开爪） | `~/.openclaw/skills/` |
-| Lobster | QClaw（千爪） | `~/.qclaw/skills/` |
-| Lobster | EasyClaw（简爪） | `~/.easyclaw/skills/` |
-| Lobster | EasyClaw V2 | `~/.easyclaw-20260322-01/skills/` |
-| Lobster | AutoClaw | `~/.openclaw-autoclaw/skills/` |
-| Lobster | WorkBuddy（打工搭子） | `~/.workbuddy/skills-marketplace/skills/` |
-| Central | 中央技能库 | `~/.agents/skills/` |
+| 类别 | 平台 | 全局 Skills 目录 | 项目目录 |
+|------|------|-----------------|----------|
+| Coding | Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| Coding | Codex CLI | `~/.agents/skills/` | `.agents/skills/` |
+| Coding | Cursor | `~/.cursor/skills/` | `.cursor/skills/` |
+| Coding | Gemini CLI | `~/.gemini/skills/` | `.gemini/skills/` |
+| Coding | Trae | `~/.trae/skills/` | `.trae/skills/` |
+| Coding | Factory Droid | `~/.factory/skills/` | `.factory/skills/` |
+| Coding | Junie | `~/.junie/skills/` | `.junie/skills/` |
+| Coding | Qwen | `~/.qwen/skills/` | `.qwen/skills/` |
+| Coding | Trae CN | `~/.trae-cn/skills/` | `.trae-cn/skills/` |
+| Coding | Windsurf | `~/.windsurf/skills/` | `.windsurf/skills/` |
+| Coding | Qoder | `~/.qoder/skills/` | `.qoder/skills/` |
+| Coding | Augment | `~/.augment/skills/` | `.augment/skills/` |
+| Coding | OpenCode | `~/.opencode/skills/` | `.opencode/skills/` |
+| Coding | KiloCode | `~/.kilocode/skills/` | `.kilocode/skills/` |
+| Coding | OB1 | `~/.ob1/skills/` | `.ob1/skills/` |
+| Coding | Amp | `~/.amp/skills/` | `.amp/skills/` |
+| Coding | Kiro | `~/.kiro/skills/` | `.kiro/skills/` |
+| Coding | CodeBuddy | `~/.codebuddy/skills/` | `.codebuddy/skills/` |
+| Coding | Copilot | `~/.copilot/skills/` | `.copilot/skills/` |
+| Coding | Aider | `~/.aider/skills/` | `.aider/skills/` |
+| Lobster | Hermes | `~/.hermes/skills/` | - |
+| Lobster | OpenClaw | `~/.openclaw/skills/` | - |
+| Lobster | QClaw | `~/.qclaw/skills/` | - |
+| Lobster | EasyClaw | `~/.easyclaw/skills/` | - |
+| Lobster | AutoClaw | `~/.openclaw-autoclaw/skills/` | - |
+| Lobster | WorkBuddy | `~/.workbuddy/skills-marketplace/skills/` | - |
+| Central | Central Skills | `~/.agents/skills/` | - |
 
 也可以在 Settings 中添加自定义平台。
 
+> 注意：Claude Code 还可能在 Claude 视图中显示 `~/.claude/plugins/marketplaces/*` 下的 Find Skill 插件目录。这些条目是只读展示项，不会像 `~/.claude/skills/` 中的原生 skill 一样被管理。
+
 ## 隐私与安全
 
-- **本地优先** — 元数据、集合、扫描结果、设置和 AI explanation 缓存都保存在 `~/.skill-link/db.sqlite` 或你自己管理的本地 skill 目录中。
-- **无遥测** — 应用不包含分析、崩溃上报或使用追踪。
-- **网络访问由功能触发** — 只有在你显式使用 Skill Market 同步/下载、skill.sh 搜索/安装、GitHub 导入或 AI explanation 时才会发起外部请求。
-- **凭据仅本地存储** — GitHub PAT 和 AI API key 会保存在本地 SQLite settings 表中，应用本身不提供静态加密。
-- 不要在 issue、PR、截图或日志里公开真实密钥。
+- **本地优先** - 元数据、集合、扫描结果、设置、更新缓存和 AI explanation 都保存在 `~/.skill-link/db.sqlite` 或你自己管理的本地 skill 目录中。
+- **无遥测** - 应用不包含分析、崩溃上报或使用追踪。
+- **网络访问由功能触发** - 只有使用 Find Skill 同步/下载、skill.sh 搜索/安装、GitHub 导入/更新检测或 AI explanation 时才会发起外部请求。
+- **凭据仅本地存储** - GitHub PAT 和 AI API key 会保存在本地 SQLite settings 表中，应用本身不提供静态加密。
+- **更新备份** - GitHub skill 更新会在 `~/.skill-link/backups` 下创建本地备份。
+
+不要在 issue、PR、截图或日志里公开真实密钥。
 
 ## 技术栈
 
 | 层 | 技术 |
 |----|------|
 | 桌面框架 | Tauri v2 |
-| 前端 | React 19、TypeScript、Tailwind CSS 4 |
-| UI 组件 | shadcn/ui、Lucide icons |
+| 前端 | React 18.3.1、TypeScript、Tailwind CSS 4 |
+| UI | shadcn/ui、Base UI、Lucide icons、LobeHub icons |
 | 状态管理 | Zustand |
-| Markdown | react-markdown |
+| Markdown | react-markdown、remark-gfm、gray-matter |
 | 国际化 | react-i18next、i18next-browser-languagedetector |
-| 主题 | Catppuccin 4 种风格 |
-| 后端 | Rust（serde、sqlx、chrono、uuid） |
-| 数据库 | SQLite via sqlx（WAL 模式） |
+| 后端 | Rust、SQLx、serde、reqwest |
+| 数据库 | SQLite via SQLx，WAL 模式 |
 | 路由 | react-router-dom v7 |
+| 测试 | Vitest、React Testing Library、Cargo tests |
 
 ## 开发
 
 ### 前置依赖
 
-- [Node.js](https://nodejs.org/)（LTS）
-- [pnpm](https://pnpm.io/)
-- [Rust toolchain](https://rustup.rs/)（stable）
+- [Node.js](https://nodejs.org/) 20 或更新版本
+- [pnpm](https://pnpm.io/) 10.12.3 或更新版本
+- [Rust toolchain](https://rustup.rs/) stable
 - Tauri v2 系统依赖：<https://v2.tauri.app/start/prerequisites/>
 
 ### 安装依赖
@@ -182,22 +180,46 @@ xattr -dr com.apple.quarantine "/Applications/Skill Link.app"
 pnpm install
 ```
 
-### 启动开发环境
+### 启动
+
+```bash
+pnpm dev
+```
+
+单独前端 Vite 服务使用 `24200` 端口。
+
+完整桌面应用：
 
 ```bash
 pnpm tauri dev
 ```
 
-Vite 开发服务器默认使用 `24200` 端口。
+`pnpm tauri dev` 会通过 `src-tauri/tauri.conf.json` 自动启动 Vite，不需要再手动开第二个 Vite 服务。
 
-### 验证命令
+### 验证
+
+前端 CI 顺序：
 
 ```bash
-pnpm test
 pnpm typecheck
 pnpm lint
-cd src-tauri && cargo test
-cd src-tauri && cargo clippy -- -D warnings
+pnpm test
+```
+
+后端 CI 顺序：
+
+```bash
+cd src-tauri
+cargo fmt --check
+cargo clippy -- -D warnings
+cargo test
+```
+
+聚焦测试示例：
+
+```bash
+pnpm test -- src/test/skillStore.test.ts
+cd src-tauri && cargo test db::
 ```
 
 ## 项目结构
@@ -206,18 +228,20 @@ cd src-tauri && cargo clippy -- -D warnings
 skill-link/
 ├── src/                        # React 前端
 │   ├── components/             # UI 组件
+│   ├── data/                   # 内置 marketplace 和 provider 数据
 │   ├── i18n/                   # 语言文件和 i18n 配置
 │   ├── lib/                    # 前端工具函数
 │   ├── pages/                  # 路由页面
-│   ├── stores/                 # Zustand stores
+│   ├── stores/                 # Zustand stores 和 Tauri IPC 边界
 │   ├── test/                   # Vitest + RTL 测试
 │   └── types/                  # 共享 TypeScript 类型
 ├── src-tauri/                  # Rust 后端
 │   └── src/
-│       ├── commands/           # Tauri IPC 处理器
+│       ├── commands/           # 按领域拆分的 Tauri IPC 处理器
 │       ├── db.rs               # SQLite schema、迁移、查询
-│       ├── lib.rs              # Tauri 应用初始化
+│       ├── lib.rs              # Tauri 初始化与命令注册
 │       └── main.rs             # 桌面入口
+├── images/                     # README 截图
 ├── public/                     # 静态资源
 ├── CHANGELOG.md                # 英文更新日志
 ├── CHANGELOG.zh.md             # 中文更新日志
@@ -226,7 +250,17 @@ skill-link/
 
 ## 数据库
 
-SQLite 数据库位于 `~/.skill-link/db.sqlite`，首次启动时会自动初始化。
+Skill Link 会自动初始化 SQLite：
+
+```text
+~/.skill-link/db.sqlite
+```
+
+中央 skill 来源目录仍然是：
+
+```text
+~/.agents/skills/
+```
 
 ## 更新日志
 
