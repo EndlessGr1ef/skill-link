@@ -52,6 +52,8 @@ pub fn run() {
             commands::linker::uninstall_skill_from_agent,
             commands::linker::install_skill_to_project,
             commands::linker::uninstall_skill_from_project,
+            commands::linker::install_skill_to_custom_path,
+            commands::linker::uninstall_skill_from_custom_path,
             commands::linker::batch_install_to_agents,
             commands::linker::import_skill_to_central,
             commands::linker::delete_skill_from_central,

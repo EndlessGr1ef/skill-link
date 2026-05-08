@@ -19,6 +19,11 @@ import {
   ArrowUpCircle,
   ExternalLink,
   Link2,
+  Folder,
+  FolderInput,
+  X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
@@ -27,8 +32,10 @@ import { parseFrontmatter } from "@/lib/frontmatter";
 import { useSkillDetailStore } from "@/stores/skillDetailStore";
 import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { usePlatformStore } from "@/stores/platformStore";
+import { useDiscoverStore } from "@/stores/discoverStore";
 import { CollectionPickerDialog } from "@/components/collection/CollectionPickerDialog";
 import { LinkGitHubDialog } from "@/components/skill/LinkGitHubDialog";
+import { SkillProjectInstallDialog } from "@/components/skill/SkillProjectInstallDialog";
 import {
   AgentWithStatus,
   ClaudeSourceKind,
@@ -41,6 +48,11 @@ import { cn } from "@/lib/utils";
 import { findFileNodeByPath } from "@/lib/fileTree";
 import { FileTreeNode } from "@/components/skill/FileTreeNode";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
+import { useLocalStorageToggle } from "@/hooks/useLocalStorageToggle";
+import {
+  LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS,
+  SHOW_ALL_PLATFORMS_STORAGE_KEY,
+} from "@/lib/platformVisibility";
 
 // ─── Section Label ─────────────────────────────────────────────────────────────
 
@@ -299,6 +311,13 @@ export function SkillDetailView({
   // Platform agents (loaded at app init)
   const agents = usePlatformStore((s) => s.agents);
   const refreshCounts = usePlatformStore((s) => s.refreshCounts);
+  const installSkillToProject = usePlatformStore((s) => s.installSkillToProject);
+  const uninstallSkillFromProject = usePlatformStore((s) => s.uninstallSkillFromProject);
+  const installSkillToCustomPath = usePlatformStore((s) => s.installSkillToCustomPath);
+  const uninstallSkillFromCustomPath = usePlatformStore((s) => s.uninstallSkillFromCustomPath);
+
+  // Discovered projects (for project install dialog)
+  const discoveredProjects = useDiscoverStore((s) => s.discoveredProjects);
 
   // Update detection (from central store)
   const updateStatuses = useCentralSkillsStore((s) => s.updateStatuses);
@@ -339,6 +358,7 @@ export function SkillDetailView({
   const [activeTab, setActiveTab] = useState<PreviewTab>("markdown");
   const [isCollectionPickerOpen, setIsCollectionPickerOpen] = useState(false);
   const [isLinkGitHubOpen, setIsLinkGitHubOpen] = useState(false);
+  const [isProjectInstallOpen, setIsProjectInstallOpen] = useState(false);
   const [isMetadataExpanded, setIsMetadataExpanded] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const addToCollectionButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -489,8 +509,26 @@ export function SkillDetailView({
   // ── Derived values ───────────────────────────────────────────────────────
 
   const targetAgents = agents.filter((a) => a.id !== "central");
-  const lobsterAgents = targetAgents.filter((a) => a.category === "lobster");
-  const codingAgents = targetAgents.filter((a) => a.category !== "lobster");
+
+  // Show all platforms toggle (shared with InstallDialog)
+  const [showAllPlatforms, toggleShowAllPlatforms] = useLocalStorageToggle(
+    SHOW_ALL_PLATFORMS_STORAGE_KEY,
+    false,
+    LEGACY_SHOW_ALL_PLATFORMS_STORAGE_KEYS,
+  );
+
+  const detectedAgentIds = useMemo(
+    () => new Set(targetAgents.filter((a) => a.is_detected).map((a) => a.id)),
+    [targetAgents],
+  );
+
+  const visibleTargetAgents = useMemo(() => {
+    if (showAllPlatforms || detectedAgentIds.size === 0) return targetAgents;
+    return targetAgents.filter((a) => detectedAgentIds.has(a.id));
+  }, [showAllPlatforms, targetAgents, detectedAgentIds]);
+
+  const lobsterAgents = visibleTargetAgents.filter((a) => a.category === "lobster");
+  const codingAgents = visibleTargetAgents.filter((a) => a.category !== "lobster");
 
   const installationMap = new Map<string, SkillInstallation>(
     (detail?.installations ?? []).map((inst) => [inst.agent_id, inst])
@@ -524,6 +562,44 @@ export function SkillDetailView({
   function handleCollectionAdded() {
     if (detailRequest) {
       loadDetail(detailRequest);
+    }
+  }
+
+  async function handleInstallToProject(sid: string, agentIds: string[], projectPath: string) {
+    try {
+      for (const agentId of agentIds) {
+        await installSkillToProject(sid, agentId, projectPath);
+      }
+      toast.success(t("detail.installToProject"));
+      if (detailRequest) loadDetail(detailRequest);
+    } catch (err) {
+      toast.error(String(err));
+      throw err;
+    }
+  }
+
+  async function handleInstallToCustomPath(sid: string, targetDir: string, method?: string) {
+    try {
+      await installSkillToCustomPath(sid, targetDir, method);
+      toast.success(t("detail.installToProject"));
+      if (detailRequest) loadDetail(detailRequest);
+    } catch (err) {
+      toast.error(String(err));
+      throw err;
+    }
+  }
+
+  async function handleUninstallFromProject(agentId: string, projectPath: string) {
+    if (!skillId) return;
+    try {
+      if (agentId === "__custom__") {
+        await uninstallSkillFromCustomPath(skillId, projectPath);
+      } else {
+        await uninstallSkillFromProject(skillId, agentId, projectPath);
+      }
+      if (detailRequest) loadDetail(detailRequest);
+    } catch (err) {
+      toast.error(t("detail.uninstallFromProject") + ": " + String(err));
     }
   }
 
@@ -1197,10 +1273,129 @@ export function SkillDetailView({
                               </div>
                             </div>
                           )}
+                          {detectedAgentIds.size > 0 && (
+                            <button
+                              type="button"
+                              onClick={toggleShowAllPlatforms}
+                              className={cn(
+                                "flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer rounded-md px-2 py-1",
+                                showAllPlatforms
+                                  ? "text-primary bg-primary/10"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                              )}
+                            >
+                              {showAllPlatforms ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                              {showAllPlatforms ? t("sidebar.hideEmptyPlatforms") : t("sidebar.showAllPlatforms")}
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
                   </section>
+
+                  {/* Project Installations */}
+                  {!detail.is_read_only && (
+                    <section aria-label={t("detail.projectInstallations")}>
+                      <SectionLabel>{t("detail.projectInstallations")}</SectionLabel>
+                      {(() => {
+                        const projectInstalls = (detail.installations ?? []).filter(
+                          (inst) => inst.project_path && inst.project_path !== "",
+                        );
+                        if (projectInstalls.length === 0) {
+                          return (
+                            <div className="space-y-2">
+                              <p className="text-xs text-muted-foreground">
+                                {t("detail.noProjectInstallations")}
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsProjectInstallOpen(true)}
+                                className="gap-1.5 w-full"
+                              >
+                                <Folder className="size-3.5" />
+                                {t("detail.installToProject")}
+                              </Button>
+                            </div>
+                          );
+                        }
+                        // Group by project_path
+                        const grouped = new Map<string, SkillInstallation[]>();
+                        for (const inst of projectInstalls) {
+                          const list = grouped.get(inst.project_path) ?? [];
+                          list.push(inst);
+                          grouped.set(inst.project_path, list);
+                        }
+                        return (
+                          <div className="space-y-3">
+                            {Array.from(grouped.entries()).map(([projPath, installs]) => {
+                              const projName = projPath.split("/").pop() ?? projPath;
+                              return (
+                                <div key={projPath} className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <Folder className="size-3 text-muted-foreground shrink-0" />
+                                    <span
+                                      className="text-xs font-medium text-foreground truncate"
+                                      title={projPath}
+                                    >
+                                      {projName}
+                                    </span>
+                                  </div>
+                                  <div className="ml-4.5 space-y-0.5">
+                                    {installs.map((inst) => {
+                                      const isCustom = inst.agent_id === "__custom__";
+                                      const agent = !isCustom
+                                        ? agents.find((a) => a.id === inst.agent_id)
+                                        : null;
+                                      return (
+                                        <div
+                                          key={`${inst.agent_id}-${inst.installed_path}`}
+                                          className="flex items-center gap-1.5"
+                                        >
+                                          {isCustom ? (
+                                            <FolderInput className="size-3 text-muted-foreground shrink-0" />
+                                          ) : (
+                                            <PlatformIcon
+                                              agentId={inst.agent_id}
+                                              className="size-3 shrink-0"
+                                            />
+                                          )}
+                                          <span className="text-[11px] text-muted-foreground truncate">
+                                            {isCustom
+                                              ? t("detail.customPath")
+                                              : (agent?.display_name ?? inst.agent_id)}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleUninstallFromProject(inst.agent_id, inst.project_path)
+                                            }
+                                            className="ml-auto p-0.5 text-muted-foreground/50 hover:text-destructive transition-colors cursor-pointer"
+                                            title={t("detail.uninstallFromProject")}
+                                          >
+                                            <X className="size-3" />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsProjectInstallOpen(true)}
+                              className="gap-1 text-muted-foreground hover:text-foreground h-6 px-2 text-xs"
+                            >
+                              <Plus className="size-3" />
+                              {t("detail.installToProject")}
+                            </Button>
+                          </div>
+                        );
+                      })()}
+                    </section>
+                  )}
 
                   {/* Collections */}
                   <section aria-label={t("detail.collections")}>
@@ -1301,6 +1496,21 @@ export function SkillDetailView({
           open={isLinkGitHubOpen}
           onOpenChange={setIsLinkGitHubOpen}
           onLink={handleLinkGitHub}
+        />
+      )}
+
+      {/* Install to Project Dialog */}
+      {skillId && detail && !detail.is_read_only && (
+        <SkillProjectInstallDialog
+          open={isProjectInstallOpen}
+          onOpenChange={setIsProjectInstallOpen}
+          skillId={skillId}
+          skillName={detail.name}
+          agents={agents}
+          discoveredProjects={discoveredProjects}
+          existingInstallations={detail.installations ?? []}
+          onInstallToProject={handleInstallToProject}
+          onInstallToCustomPath={handleInstallToCustomPath}
         />
       )}
     </div>

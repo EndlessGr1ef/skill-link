@@ -61,6 +61,8 @@ interface PlatformState {
   loadProjectInstallations: (agentId: string) => Promise<void>;
   installSkillToProject: (skillId: string, agentId: string, projectPath: string) => Promise<void>;
   uninstallSkillFromProject: (skillId: string, agentId: string, projectPath: string) => Promise<void>;
+  installSkillToCustomPath: (skillId: string, targetDir: string, method?: string) => Promise<void>;
+  uninstallSkillFromCustomPath: (skillId: string, targetDir: string) => Promise<void>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -201,5 +203,17 @@ export const usePlatformStore = create<PlatformState>((set, get) => ({
       get().loadProjectInstallations(agentId),
       get().refreshCounts(),
     ]);
+  },
+
+  installSkillToCustomPath: async (skillId: string, targetDir: string, method?: string) => {
+    if (!isTauriRuntime()) return;
+    await invoke("install_skill_to_custom_path", { skillId, targetDir, method: method ?? "symlink" });
+    await get().refreshCounts();
+  },
+
+  uninstallSkillFromCustomPath: async (skillId: string, targetDir: string) => {
+    if (!isTauriRuntime()) return;
+    await invoke("uninstall_skill_from_custom_path", { skillId, targetDir });
+    await get().refreshCounts();
   },
 }));

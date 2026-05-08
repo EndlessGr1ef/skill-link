@@ -282,6 +282,8 @@ function buildPlatformStoreState(overrides = {}) {
     loadProjectInstallations: vi.fn(),
     installSkillToProject: vi.fn(),
     uninstallSkillFromProject: vi.fn(),
+    installSkillToCustomPath: vi.fn(),
+    uninstallSkillFromCustomPath: vi.fn(),
     ...overrides,
   };
 }

@@ -638,6 +638,156 @@ pub async fn uninstall_skill_from_project(
     uninstall_skill_from_project_impl(&state.db, &skill_id, &agent_id, &project_path).await
 }
 
+// ─── Custom Path Install ──────────────────────────────────────────────────
+
+const CUSTOM_AGENT_ID: &str = "__custom__";
+
+/// Install a skill to a user-specified directory by creating a symlink or copy.
+/// The skill is placed at `target_dir/<skill_id>`.
+pub async fn install_skill_to_custom_path_impl(
+    pool: &DbPool,
+    skill_id: &str,
+    target_dir: &str,
+    method: &str,
+) -> Result<InstallResult, String> {
+    if target_dir.is_empty() {
+        return Err("Target directory must not be empty".to_string());
+    }
+
+    // Look up the central agent for the canonical root.
+    let central = db::get_agent_by_id(pool, "central")
+        .await?
+        .ok_or_else(|| "Central agent not found in database".to_string())?;
+
+    let canonical_dir = PathBuf::from(&central.global_skills_dir).join(skill_id);
+
+    // Ensure the skill exists in central (auto-centralize if needed).
+    ensure_centralized(pool, skill_id, &canonical_dir).await?;
+
+    // Compute target location: target_dir/skill_id
+    let target_path = PathBuf::from(target_dir).join(skill_id);
+
+    // Ensure the target directory exists.
+    std::fs::create_dir_all(target_dir)
+        .map_err(|e| format!("Failed to create target directory '{}': {}", target_dir, e))?;
+
+    // Handle any existing entry at the target path.
+    match std::fs::symlink_metadata(&target_path) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            std::fs::remove_file(&target_path)
+                .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+        }
+        Ok(meta) if meta.is_dir() => {
+            return Err(format!(
+                "A real directory already exists at '{}'. Refusing to overwrite.",
+                target_path.display()
+            ));
+        }
+        Ok(_) => {
+            return Err(format!(
+                "A file already exists at '{}'. Refusing to overwrite.",
+                target_path.display()
+            ));
+        }
+        Err(_) => {} // Path does not exist — proceed.
+    }
+
+    let (link_type, symlink_target) = if method == "copy" {
+        // Copy the entire skill directory.
+        copy_dir_all(&canonical_dir, &target_path)?;
+        ("copy".to_string(), None)
+    } else {
+        // Create a symlink (default).
+        let relative_target = symlink_target_path(
+            &PathBuf::from(target_dir),
+            &canonical_dir,
+        );
+        create_symlink(&relative_target, &target_path)?;
+        ("symlink".to_string(), Some(canonical_dir.to_string_lossy().into_owned()))
+    };
+
+    // Persist the installation record.
+    let installation = SkillInstallation {
+        skill_id: skill_id.to_string(),
+        agent_id: CUSTOM_AGENT_ID.to_string(),
+        installed_path: target_path.to_string_lossy().into_owned(),
+        link_type,
+        symlink_target,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        project_path: target_dir.to_string(),
+    };
+    db::upsert_skill_installation(pool, &installation).await?;
+
+    Ok(InstallResult {
+        symlink_path: target_path.to_string_lossy().into_owned(),
+    })
+}
+
+/// Uninstall a skill from a custom path.
+pub async fn uninstall_skill_from_custom_path_impl(
+    pool: &DbPool,
+    skill_id: &str,
+    target_dir: &str,
+) -> Result<(), String> {
+    let install_path = PathBuf::from(target_dir).join(skill_id);
+
+    // Look up the installation record to determine how it was installed.
+    let installations = db::get_skill_installations(pool, skill_id).await?;
+    let record = installations.iter().find(|r| r.agent_id == CUSTOM_AGENT_ID && r.project_path == target_dir);
+    let link_type = record.map(|r| r.link_type.as_str()).unwrap_or("symlink");
+
+    match std::fs::symlink_metadata(&install_path) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            std::fs::remove_file(&install_path)
+                .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+        }
+        Ok(meta) if meta.is_dir() => {
+            // Only remove real directories that were explicitly installed as copies.
+            if link_type == "copy" {
+                std::fs::remove_dir_all(&install_path)
+                    .map_err(|e| format!("Failed to remove copied skill directory: {}", e))?;
+            } else {
+                return Err(format!(
+                    "Path '{}' exists but is not a symlink. Refusing to delete.",
+                    install_path.display()
+                ));
+            }
+        }
+        Ok(_) => {
+            return Err(format!(
+                "Path '{}' exists but is not a symlink or directory. Refusing to delete.",
+                install_path.display()
+            ));
+        }
+        Err(_) => {
+            // Path doesn't exist — still clean up the DB record.
+        }
+    }
+
+    db::delete_skill_installation(pool, skill_id, CUSTOM_AGENT_ID, target_dir).await?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn install_skill_to_custom_path(
+    state: State<'_, AppState>,
+    skill_id: String,
+    target_dir: String,
+    method: Option<String>,
+) -> Result<InstallResult, String> {
+    install_skill_to_custom_path_impl(&state.db, &skill_id, &target_dir, method.as_deref().unwrap_or("symlink")).await
+}
+
+#[tauri::command]
+pub async fn uninstall_skill_from_custom_path(
+    state: State<'_, AppState>,
+    skill_id: String,
+    target_dir: String,
+) -> Result<(), String> {
+    uninstall_skill_from_custom_path_impl(&state.db, &skill_id, &target_dir).await
+}
+
 /// Delete a central skill entirely: uninstall from all agents, remove disk
 /// files from the central directory, and purge all DB records.
 ///

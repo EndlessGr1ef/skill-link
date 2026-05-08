@@ -47,6 +47,8 @@ pub struct SkillInstallationDetail {
     pub symlink_target: Option<String>,
     /// ISO 8601 timestamp of when the skill was first installed.
     pub installed_at: String,
+    /// Project path for project-level installs. Empty string for global installs.
+    pub project_path: String,
 }
 
 /// A skill with full installation details across all platforms.
@@ -242,6 +244,7 @@ fn installation_details(installations: Vec<db::SkillInstallation>) -> Vec<SkillI
             link_type: i.link_type,
             symlink_target: i.symlink_target,
             installed_at: i.created_at,
+            project_path: i.project_path,
         })
         .collect()
 }
