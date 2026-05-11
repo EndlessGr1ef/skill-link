@@ -386,20 +386,20 @@ export const useDiscoverStore = create<DiscoverState>((set, get) => ({
         "import_discovered_skill_to_central",
         { discoveredSkillId: skillId }
       );
-      // Remove the skill from discovered results.
+      // Mark the skill as already-central instead of removing it.
+      // The project file still exists on disk, and the user may want
+      // to install it to additional platforms from here.
       set((state) => {
-        const updatedProjects = state.discoveredProjects
-          .map((p) => ({
-            ...p,
-            skills: p.skills.filter((s) => s.id !== skillId),
-          }))
-          .filter((p) => p.skills.length > 0);
-        const totalSkills = updatedProjects.reduce((sum, p) => sum + p.skills.length, 0);
+        const updatedProjects = state.discoveredProjects.map((p) => ({
+          ...p,
+          skills: p.skills.map((s) =>
+            s.id === skillId ? { ...s, is_already_central: true } : s
+          ),
+        }));
         const newSelection = new Set(state.selectedSkillIds);
         newSelection.delete(skillId);
         return {
           discoveredProjects: updatedProjects,
-          totalSkillsFound: totalSkills,
           selectedSkillIds: newSelection,
         };
       });

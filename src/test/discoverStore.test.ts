@@ -348,16 +348,18 @@ describe("discoverStore", () => {
     });
   });
 
-  it("removes imported skill from discoveredProjects", async () => {
+  it("marks imported skill as already-central instead of removing", async () => {
     useDiscoverStore.setState({ discoveredProjects: mockDiscoveredProjects });
     vi.mocked(invoke).mockResolvedValueOnce(mockImportResult);
 
     await useDiscoverStore.getState().importToCentral("claude-code__my-app__deploy");
 
     const state = useDiscoverStore.getState();
-    expect(state.discoveredProjects[0].skills).toHaveLength(1);
-    expect(state.discoveredProjects[0].skills[0].id).toBe("cursor__my-app__review");
-    expect(state.totalSkillsFound).toBe(1);
+    const skill = state.discoveredProjects[0].skills.find(
+      (s) => s.id === "claude-code__my-app__deploy"
+    );
+    expect(skill).toBeDefined();
+    expect(skill?.is_already_central).toBe(true);
   });
 
   it("removes imported skill from selectedSkillIds", async () => {

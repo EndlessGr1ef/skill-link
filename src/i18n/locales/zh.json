@@ -114,7 +114,9 @@
   },
   "installDialog": {
     "title": "安装 {{name}}",
+    "titleCentralize": "安装 {{name}} 到中央技能库",
     "choosePlatforms": "选择要安装此技能的平台。",
+    "choosePlatformsCentralize": "此技能将被复制到中央技能库。可选择同时链接到以下平台。",
     "noPlatforms": "未检测到平台。请在设置中添加平台。",
     "installMethod": "安装方式",
     "symlink": "符号链接",
@@ -124,6 +126,8 @@
     "alreadyLinked": "已链接",
     "notDetected": "(未检测到)",
     "confirmInstall": "安装到 {{count}} 个平台",
+    "confirmCentralize": "安装到中央技能库",
+    "confirmCentralizeAndInstall": "安装到中央技能库并链接 {{count}} 个平台",
     "selectPlatform": "请至少选择一个平台。",
     "selectPlatforms": "选择平台",
     "cancel": "取消",

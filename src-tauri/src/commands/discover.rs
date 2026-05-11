@@ -1016,8 +1016,11 @@ pub async fn import_discovered_skill_to_central(
         db::upsert_skill(pool, &db_skill).await?;
     }
 
-    // Remove the discovered skill record since it's now centralized.
-    db::delete_discovered_skill(pool, &discovered_skill_id).await?;
+    // Keep the discovered skill record so it still appears in the list.
+    // is_already_central is computed dynamically from the filesystem, so it
+    // will automatically become true on the next load since we just copied
+    // the skill into the central directory above.
+    // Do NOT call db::delete_discovered_skill here.
 
     Ok(ImportResult {
         skill_id: skill_dir_name,
@@ -1449,13 +1452,13 @@ mod tests {
             "SKILL.md should exist in central"
         );
 
-        // Verify discovered skill record was removed.
+        // Verify discovered skill record is preserved (not deleted).
         let record = db::get_discovered_skill_by_id(&pool, "claude-code__project__my-skill")
             .await
             .unwrap();
         assert!(
-            record.is_none(),
-            "discovered skill record should be removed"
+            record.is_some(),
+            "discovered skill record should be preserved after centralize"
         );
     }
 
@@ -1512,7 +1515,8 @@ mod tests {
             db::upsert_skill(pool, &db_skill).await?;
         }
 
-        db::delete_discovered_skill(pool, discovered_skill_id).await?;
+        // Keep the discovered skill record (do NOT delete it).
+        // is_already_central is computed dynamically from the filesystem.
 
         Ok(ImportResult {
             skill_id: skill_dir_name,

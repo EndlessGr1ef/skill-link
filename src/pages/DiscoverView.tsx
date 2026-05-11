@@ -125,6 +125,7 @@ export function DiscoverView() {
   const [installTargetSkill, setInstallTargetSkill] =
     useState<DiscoveredSkill | null>(null);
   const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
+  const [installDialogMode, setInstallDialogMode] = useState<"centralize" | "platform">("centralize");
   const [drawerSkillId, setDrawerSkillId] = useState<string | null>(null);
   const [drawerFilePath, setDrawerFilePath] = useState<string | null>(null);
   const [drawerDiscoverMeta, setDrawerDiscoverMeta] = useState<{
@@ -287,46 +288,68 @@ export function DiscoverView() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const handleInstallToCentral = useCallback(
-    async (skillId: string) => {
-      setImportingIds((prev) => new Set(prev).add(skillId));
-      try {
-        await importToCentral(skillId);
-        await Promise.all([refreshCounts(), refreshDiscoverCounts()]);
-        toast.success(t("discover.importSuccess"));
-      } catch (err) {
-        toast.error(t("discover.importError", { error: String(err) }));
-      } finally {
-        setImportingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(skillId);
-          return next;
-        });
-      }
-    },
-    [importToCentral, refreshCounts, refreshDiscoverCounts, t]
-  );
+  const handleInstallToCentral = useCallback((skill: DiscoveredSkill) => {
+    setInstallTargetSkill(skill);
+    setInstallDialogMode("centralize");
+    setIsInstallDialogOpen(true);
+  }, []);
 
   const handleInstallToPlatform = useCallback((skill: DiscoveredSkill) => {
     setInstallTargetSkill(skill);
+    setInstallDialogMode("platform");
     setIsInstallDialogOpen(true);
   }, []);
 
   const handleBatchInstallCentral = useCallback(async () => {
     const ids = Array.from(selectedSkillIds);
-    for (const id of ids) {
-      await handleInstallToCentral(id);
+    setImportingIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
+    try {
+      for (const id of ids) {
+        await importToCentral(id);
+      }
+      await Promise.all([refreshCounts(), refreshDiscoverCounts()]);
+      toast.success(t("discover.importSuccess"));
+    } catch (err) {
+      toast.error(t("discover.importError", { error: String(err) }));
+    } finally {
+      setImportingIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
     }
-  }, [selectedSkillIds, handleInstallToCentral]);
+  }, [selectedSkillIds, importToCentral, refreshCounts, refreshDiscoverCounts, t]);
 
   const handleInstallFromDialog = useCallback(
-    async (_skillId: string, agentIds: string[], _method: string) => {
+    async (_skillId: string, agentIds: string[], method: string) => {
       if (!installTargetSkill) return;
       const targetId = installTargetSkill.id;
       setImportingIds((prev) => new Set(prev).add(targetId));
       try {
-        for (const agentId of agentIds) {
-          await importToPlatform(targetId, agentId);
+        if (installDialogMode === "centralize") {
+          const result = await importToCentral(targetId);
+          if (agentIds.length > 0) {
+            await invoke("batch_install_to_agents", {
+              skillId: result.skill_id,
+              agentIds,
+              method,
+            });
+          }
+        } else if (installTargetSkill.is_already_central) {
+          const skillDirName = getPathBasename(installTargetSkill.dir_path) ?? targetId;
+          await invoke("batch_install_to_agents", {
+            skillId: skillDirName,
+            agentIds,
+            method,
+          });
+        } else {
+          for (const agentId of agentIds) {
+            await importToPlatform(targetId, agentId);
+          }
         }
         await Promise.all([refreshCounts(), refreshDiscoverCounts()]);
         toast.success(t("discover.importSuccess"));
@@ -342,7 +365,7 @@ export function DiscoverView() {
         setInstallTargetSkill(null);
       }
     },
-    [installTargetSkill, importToPlatform, refreshCounts, refreshDiscoverCounts, t]
+    [installDialogMode, installTargetSkill, importToCentral, importToPlatform, refreshCounts, refreshDiscoverCounts, t]
   );
 
   const handleRescan = useCallback(async () => {
@@ -649,7 +672,7 @@ export function DiscoverView() {
                             : skill.id,
                           node,
                         )}
-                        onInstallToCentral={() => handleInstallToCentral(skill.id)}
+                        onInstallToCentral={() => handleInstallToCentral(skill)}
                         onInstallToPlatform={() => handleInstallToPlatform(skill)}
                         isLoading={importingIds.has(skill.id)}
                         className="h-[120px]"
@@ -681,7 +704,7 @@ export function DiscoverView() {
                             : skill.id,
                           node,
                         )}
-                        onInstallToCentral={() => handleInstallToCentral(skill.id)}
+                        onInstallToCentral={() => handleInstallToCentral(skill)}
                         onInstallToPlatform={() => handleInstallToPlatform(skill)}
                         isLoading={importingIds.has(skill.id)}
                       />
@@ -750,6 +773,7 @@ export function DiscoverView() {
           } as SkillWithLinks}
           agents={platformAgents}
           onInstall={handleInstallFromDialog}
+          mode={installDialogMode}
         />
       )}
 

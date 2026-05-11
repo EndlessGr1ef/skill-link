@@ -41,6 +41,9 @@ interface InstallDialogProps {
    *  inactive platforms are hidden by default with a toggle to show all. */
   activeAgentIds?: Set<string>;
   onInstall: (skillId: string, agentIds: string[], method: InstallMethod) => Promise<void>;
+  /** When "centralize", the dialog title emphasizes installing to central +
+   *  optionally linking to platforms. Default: "platform". */
+  mode?: "centralize" | "platform";
 }
 
 // ─── InstallDialog ────────────────────────────────────────────────────────────
@@ -52,6 +55,7 @@ export function InstallDialog({
   agents,
   activeAgentIds,
   onInstall,
+  mode = "platform",
 }: InstallDialogProps) {
   const { t } = useTranslation();
   // Only show non-central agents in the install dialog.
@@ -110,7 +114,7 @@ export function InstallDialog({
     if (!skill) return;
 
     const agentIds = Array.from(selectedAgentIds);
-    if (agentIds.length === 0) {
+    if (agentIds.length === 0 && mode !== "centralize") {
       setError(t("installDialog.selectPlatform"));
       return;
     }
@@ -133,13 +137,19 @@ export function InstallDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{t("installDialog.title", { name: skill.name })}</DialogTitle>
+          <DialogTitle>
+            {mode === "centralize"
+              ? t("installDialog.titleCentralize", { name: skill.name })
+              : t("installDialog.title", { name: skill.name })}
+          </DialogTitle>
           <DialogClose />
         </DialogHeader>
 
         <DialogBody className="space-y-5">
           <DialogDescription>
-            {t("installDialog.choosePlatforms")}
+            {mode === "centralize"
+              ? t("installDialog.choosePlatformsCentralize")
+              : t("installDialog.choosePlatforms")}
           </DialogDescription>
 
           {/* Platform checkboxes */}
@@ -250,13 +260,17 @@ export function InstallDialog({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isLoading || selectedAgentIds.size === 0}
+            disabled={isLoading || (selectedAgentIds.size === 0 && mode !== "centralize")}
           >
             {isLoading ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
                 {t("installDialog.installing")}
               </>
+            ) : mode === "centralize" ? (
+              selectedAgentIds.size > 0
+                ? t("installDialog.confirmCentralizeAndInstall", { count: selectedAgentIds.size })
+                : t("installDialog.confirmCentralize")
             ) : (
               t("installDialog.confirmInstall", { count: selectedAgentIds.size })
             )}

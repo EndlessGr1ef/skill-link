@@ -114,7 +114,9 @@
   },
   "installDialog": {
     "title": "Install {{name}}",
+    "titleCentralize": "Install {{name}} to Central & Platforms",
     "choosePlatforms": "Choose which platforms to install this skill to.",
+    "choosePlatformsCentralize": "This skill will be copied to Central Skills. Optionally choose platforms to link it to.",
     "noPlatforms": "No platforms detected. Add platforms in Settings.",
     "installMethod": "Install method",
     "symlink": "Symlink",
@@ -124,6 +126,8 @@
     "alreadyLinked": "already linked",
     "notDetected": "(not detected)",
     "confirmInstall": "Install to {{count}} platform{{count, select, 1 {} other {s}}}",
+    "confirmCentralize": "Install to Central",
+    "confirmCentralizeAndInstall": "Install to Central & {{count}} platform{{count, select, 1 {} other {s}}}",
     "selectPlatform": "Please select at least one platform.",
     "selectPlatforms": "Select platforms",
     "cancel": "Cancel",
