@@ -215,7 +215,7 @@ export function Sidebar() {
           </div>
         ) : (
           <>
-            {/* Lobster agents */}
+            {/* AI Assistant agents */}
             {lobsterAgents.length > 0 && (
               <>
                 {expanded ? (

@@ -75,6 +75,7 @@ export interface UnifiedSkillCardProps {
   projectBadge?: string;
 
   // ── central variant ──
+  isSymlink?: boolean;
   platformIcons?: {
     agents: AgentWithStatus[];
     linkedAgents: string[];
@@ -148,6 +149,7 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
     removeLabel,
     isLoading,
     detailButtonRef,
+    isSymlink,
   } = props;
 
   // Determine variant features
@@ -333,6 +335,14 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
                 <Globe className="size-3" />
                 {t("discover.alreadyCentral")}
+              </span>
+            )}
+
+            {/* Symlink indicator (central) */}
+            {isSymlink && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                <Link2 className="size-3" />
+                {t("central.dynamicLink")}
               </span>
             )}
 

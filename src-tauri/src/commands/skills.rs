@@ -32,6 +32,8 @@ pub struct SkillWithLinks {
     pub source_branch: Option<String>,
     /// Agent IDs that have an installation record for this skill.
     pub linked_agents: Vec<String>,
+    /// Whether the central skill directory itself is a symlink.
+    pub is_symlink: bool,
 }
 
 /// An installation record enriched with the `installed_at` timestamp for
@@ -426,6 +428,12 @@ pub async fn get_central_skills(state: State<'_, AppState>) -> Result<Vec<SkillW
         let linked_agents: Vec<String> = installations.into_iter().map(|i| i.agent_id).collect();
         let (created_at, updated_at) = skill_filesystem_timestamps(&skill);
 
+        let is_symlink = Path::new(&skill.file_path)
+            .parent()
+            .and_then(|p| std::fs::symlink_metadata(p).ok())
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false);
+
         result.push(SkillWithLinks {
             id: skill.id,
             name: skill.name,
@@ -441,6 +449,7 @@ pub async fn get_central_skills(state: State<'_, AppState>) -> Result<Vec<SkillW
             source_path: skill.source_path,
             source_branch: skill.source_branch,
             linked_agents,
+            is_symlink,
         });
     }
 
@@ -890,6 +899,11 @@ mod tests {
             let linked_agents: Vec<String> =
                 installations.into_iter().map(|i| i.agent_id).collect();
             let (created_at, updated_at) = skill_filesystem_timestamps(&skill);
+            let is_symlink = Path::new(&skill.file_path)
+                .parent()
+                .and_then(|p| std::fs::symlink_metadata(p).ok())
+                .map(|m| m.file_type().is_symlink())
+                .unwrap_or(false);
             result.push(SkillWithLinks {
                 id: skill.id,
                 name: skill.name,
@@ -905,6 +919,7 @@ mod tests {
                 source_path: skill.source_path,
                 source_branch: skill.source_branch,
                 linked_agents,
+                is_symlink,
             });
         }
         Ok(result)

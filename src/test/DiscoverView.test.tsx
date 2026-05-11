@@ -84,7 +84,7 @@ vi.mock("react-i18next", () => ({
         "central.toggleInstallLabel": `Toggle ${params?.platform ?? ""} for ${params?.skill ?? ""}`,
         "collection.removeSkillLabel": `Remove ${params?.name ?? ""}`,
         "marketplace.installed": "Installed",
-        "sidebar.categoryLobster": "Lobster",
+        "sidebar.categoryLobster": "AI Assistant",
         "sidebar.categoryCoding": "Coding",
         "platform.sourceCentral": "Central Skills",
         "platform.sourceStandalone": "Standalone",

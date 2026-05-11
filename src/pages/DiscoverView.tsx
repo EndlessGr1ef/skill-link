@@ -769,7 +769,7 @@ export function DiscoverView() {
             file_path: installTargetSkill.file_path,
             is_central: false,
             linked_agents: [],
-            agent_link_types: [],
+            is_symlink: false,
             scanned_at: new Date().toISOString(),
           } as SkillWithLinks}
           agents={platformAgents}

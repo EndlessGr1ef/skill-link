@@ -69,6 +69,7 @@ const BROWSER_FIXTURE_SKILLS: SkillWithLinks[] = [
     created_at: "2026-04-17T00:00:00.000Z",
     updated_at: "2026-04-17T00:00:00.000Z",
     linked_agents: ["claude-code"],
+    is_symlink: false,
   },
 ];
 
@@ -655,6 +656,7 @@ export function CentralSkillsView() {
                 key={skill.id}
                 name={skill.name}
                 description={skill.description}
+                isSymlink={skill.is_symlink}
                 updatedAt={skill.updated_at}
                 updateStatus={updateStatuses[skill.id]}
                 onUpdate={() => handleUpdateSkill(skill.id)}

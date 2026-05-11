@@ -38,7 +38,7 @@
     "mainNav": "主导航",
     "discovered": "项目技能",
     "rescan": "重新扫描...",
-    "categoryLobster": "龙虾类",
+    "categoryLobster": "AI 助手",
     "categoryCoding": "编程类",
     "showAllPlatforms": "显示所有平台",
     "hideEmptyPlatforms": "隐藏空平台"
@@ -105,6 +105,7 @@
     "deleteError": "删除技能失败: {{error}}",
     "checkUpdates": "检查更新",
     "updateAvailable": "有更新",
+    "dynamicLink": "动态链接",
     "updatesAvailable": "{{count}} 个技能有可用更新",
     "allUpToDate": "所有技能均为最新",
     "updatesCheckPartialFail": "{{count}} 个技能检查失败",

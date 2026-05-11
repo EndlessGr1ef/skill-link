@@ -98,6 +98,7 @@ const mockSkills: SkillWithLinks[] = [
     created_at: "2026-04-10T00:00:00Z",
     updated_at: "2026-04-12T00:00:00Z",
     linked_agents: ["claude-code"],
+    is_symlink: false,
   },
   {
     id: "code-reviewer",
@@ -110,6 +111,7 @@ const mockSkills: SkillWithLinks[] = [
     created_at: "2026-04-08T00:00:00Z",
     updated_at: "2026-04-20T00:00:00Z",
     linked_agents: [],
+    is_symlink: false,
   },
 ];
 

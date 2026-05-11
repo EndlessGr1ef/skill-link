@@ -45,6 +45,7 @@ export const BROWSER_FIXTURE_SKILLS: SkillWithLinks[] = [
     created_at: "2026-04-17T00:00:00.000Z",
     updated_at: "2026-04-17T00:00:00.000Z",
     linked_agents: ["claude-code"],
+    is_symlink: false,
   },
 ];
 

@@ -146,6 +146,8 @@ export interface SkillWithLinks {
   source_branch?: string;
   /** Agent IDs that currently have this skill installed (symlink or copy). */
   linked_agents: string[];
+  /** Whether the central skill file/directory itself is a symlink. */
+  is_symlink: boolean;
 }
 
 export interface BatchInstallResult {

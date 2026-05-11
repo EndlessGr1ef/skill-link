@@ -38,7 +38,7 @@
     "mainNav": "Main navigation",
     "discovered": "Project Skills",
     "rescan": "Re-scan...",
-    "categoryLobster": "Lobster",
+    "categoryLobster": "AI Assistant",
     "categoryCoding": "Coding",
     "showAllPlatforms": "Show all platforms",
     "hideEmptyPlatforms": "Hide empty platforms"
@@ -105,6 +105,7 @@
     "deleteError": "Failed to delete skill: {{error}}",
     "checkUpdates": "Check Updates",
     "updateAvailable": "Update available",
+    "dynamicLink": "Dynamic Link",
     "updatesAvailable": "{{count}} skill(s) have updates available",
     "allUpToDate": "All skills are up to date",
     "updatesCheckPartialFail": "{{count}} skill(s) could not be checked",

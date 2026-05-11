@@ -53,6 +53,7 @@ const mockSkill: SkillWithLinks = {
   is_central: true,
   scanned_at: "2026-04-09T00:00:00Z",
   linked_agents: ["claude-code"],
+  is_symlink: false,
 };
 
 const mockOnInstall = vi.fn();
