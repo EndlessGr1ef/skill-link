@@ -961,8 +961,10 @@ pub async fn get_discovered_skills(
 pub async fn import_discovered_skill_to_central(
     state: State<'_, AppState>,
     discovered_skill_id: String,
+    method: Option<String>,
 ) -> Result<ImportResult, String> {
     let pool = &state.db;
+    let method = method.unwrap_or_else(|| "copy".to_string());
 
     // Look up the discovered skill.
     let skill = db::get_discovered_skill_by_id(pool, &discovered_skill_id)
@@ -989,11 +991,17 @@ pub async fn import_discovered_skill_to_central(
         ));
     }
 
-    // Copy the skill directory to central.
-    super::linker::copy_dir_all(Path::new(&skill.dir_path), &target_dir)?;
+    let source_dir = Path::new(&skill.dir_path);
 
-    // Now we need to re-scan so the new central skill gets picked up.
-    // Record the skill in the DB as a central skill.
+    if method == "symlink" {
+        std::fs::create_dir_all(&central_dir)
+            .map_err(|e| format!("Failed to create central dir: {}", e))?;
+        std::os::unix::fs::symlink(source_dir, &target_dir)
+            .map_err(|e| format!("Failed to create symlink: {}", e))?;
+    } else {
+        super::linker::copy_dir_all(source_dir, &target_dir)?;
+    }
+
     let skill_md_path = target_dir.join("SKILL.md");
     let info = super::scanner::parse_skill_md(&skill_md_path);
 
@@ -1006,7 +1014,7 @@ pub async fn import_discovered_skill_to_central(
             file_path: skill_md_path.to_string_lossy().into_owned(),
             canonical_path: Some(target_dir.to_string_lossy().into_owned()),
             is_central: true,
-            source: Some("copy".to_string()),
+            source: Some(method.clone()),
             content: None,
             scanned_at: now,
             source_ref: None,
@@ -1015,12 +1023,6 @@ pub async fn import_discovered_skill_to_central(
         };
         db::upsert_skill(pool, &db_skill).await?;
     }
-
-    // Keep the discovered skill record so it still appears in the list.
-    // is_already_central is computed dynamically from the filesystem, so it
-    // will automatically become true on the next load since we just copied
-    // the skill into the central directory above.
-    // Do NOT call db::delete_discovered_skill here.
 
     Ok(ImportResult {
         skill_id: skill_dir_name,
@@ -1439,6 +1441,7 @@ mod tests {
             &pool,
             "claude-code__project__my-skill",
             &central_dir,
+            "copy",
         )
         .await;
 
@@ -1468,6 +1471,7 @@ mod tests {
         pool: &DbPool,
         discovered_skill_id: &str,
         central_dir: &Path,
+        method: &str,
     ) -> Result<ImportResult, String> {
         let skill = db::get_discovered_skill_by_id(pool, discovered_skill_id)
             .await?
@@ -1491,7 +1495,14 @@ mod tests {
         std::fs::create_dir_all(central_dir)
             .map_err(|e| format!("Failed to create central dir: {}", e))?;
 
-        super::super::linker::copy_dir_all(Path::new(&skill.dir_path), &target_dir)?;
+        let source_dir = Path::new(&skill.dir_path);
+
+        if method == "symlink" {
+            std::os::unix::fs::symlink(source_dir, &target_dir)
+                .map_err(|e| format!("Failed to create symlink: {}", e))?;
+        } else {
+            super::super::linker::copy_dir_all(source_dir, &target_dir)?;
+        }
 
         let skill_md_path = target_dir.join("SKILL.md");
         let info = super::super::scanner::parse_skill_md(&skill_md_path);
@@ -1505,7 +1516,7 @@ mod tests {
                 file_path: skill_md_path.to_string_lossy().into_owned(),
                 canonical_path: Some(target_dir.to_string_lossy().into_owned()),
                 is_central: true,
-                source: Some("copy".to_string()),
+                source: Some(method.to_string()),
                 content: None,
                 scanned_at: now,
                 source_ref: None,
@@ -2093,6 +2104,7 @@ mod tests {
             &pool,
             "claude-code__project__existing-skill",
             &central_dir,
+            "copy",
         )
         .await;
 

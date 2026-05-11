@@ -331,7 +331,7 @@ export function DiscoverView() {
       setImportingIds((prev) => new Set(prev).add(targetId));
       try {
         if (installDialogMode === "centralize") {
-          const result = await importToCentral(targetId);
+          const result = await importToCentral(targetId, method);
           if (agentIds.length > 0) {
             await invoke("batch_install_to_agents", {
               skillId: result.skill_id,

@@ -345,6 +345,7 @@ describe("discoverStore", () => {
 
     expect(invoke).toHaveBeenCalledWith("import_discovered_skill_to_central", {
       discoveredSkillId: "claude-code__my-app__deploy",
+      method: "copy",
     });
   });
 

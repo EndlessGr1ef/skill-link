@@ -77,7 +77,7 @@ interface DiscoverState {
   loadDiscoveredSkills: () => Promise<void>;
   refreshCounts: () => Promise<void>;
   rescanFromDisk: () => Promise<void>;
-  importToCentral: (skillId: string) => Promise<DiscoverImportResult>;
+  importToCentral: (skillId: string, method?: string) => Promise<DiscoverImportResult>;
   importToPlatform: (skillId: string, agentId: string) => Promise<DiscoverImportResult>;
   clearResults: () => Promise<void>;
   setGroupBy: (groupBy: "project" | "platform" | "skill") => void;
@@ -379,12 +379,12 @@ export const useDiscoverStore = create<DiscoverState>((set, get) => ({
 
   // ── Import ─────────────────────────────────────────────────────────────────
 
-  importToCentral: async (skillId: string) => {
+  importToCentral: async (skillId: string, method?: string) => {
     set({ error: null });
     try {
       const result = await invoke<DiscoverImportResult>(
         "import_discovered_skill_to_central",
-        { discoveredSkillId: skillId }
+        { discoveredSkillId: skillId, method: method ?? "copy" }
       );
       // Mark the skill as already-central instead of removing it.
       // The project file still exists on disk, and the user may want
