@@ -1465,6 +1465,67 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn test_import_discovered_skill_to_central_symlink() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let pool = SqlitePool::connect(":memory:").await.unwrap();
+        db::init_database(&pool).await.unwrap();
+
+        let central_dir = tmp.path().join("central");
+        sqlx::query("UPDATE agents SET global_skills_dir = ? WHERE id = 'central'")
+            .bind(central_dir.to_str().unwrap())
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let skill_dir = tmp.path().join("project/.claude/skills/my-skill");
+        std::fs::create_dir_all(&skill_dir).unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: my-skill\ndescription: A test skill\n---\n\n# My Skill\n",
+        )
+        .unwrap();
+
+        let now = Utc::now().to_rfc3339();
+        db::insert_discovered_skill(
+            &pool,
+            "claude-code__project__my-skill",
+            "my-skill",
+            Some("A test skill"),
+            &skill_dir.join("SKILL.md").to_string_lossy(),
+            &skill_dir.to_string_lossy(),
+            &tmp.path().join("project").to_string_lossy(),
+            "project",
+            "claude-code",
+            &now,
+        )
+        .await
+        .unwrap();
+
+        let result = import_discovered_skill_to_central_impl(
+            &pool,
+            "claude-code__project__my-skill",
+            &central_dir,
+            "symlink",
+        )
+        .await;
+
+        assert!(result.is_ok(), "symlink import should succeed: {:?}", result);
+
+        let target = central_dir.join("my-skill");
+        assert!(target.exists(), "symlink target should exist");
+        assert!(
+            std::fs::symlink_metadata(&target)
+                .map(|m| m.file_type().is_symlink())
+                .unwrap_or(false),
+            "central skill should be a symlink"
+        );
+        assert!(
+            target.join("SKILL.md").exists(),
+            "SKILL.md should be readable through symlink"
+        );
+    }
+
     /// Implementation of import_discovered_skill_to_central that accepts a custom central_dir
     /// for testing (avoids depending on $HOME).
     async fn import_discovered_skill_to_central_impl(
