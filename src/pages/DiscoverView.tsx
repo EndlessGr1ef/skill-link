@@ -73,9 +73,9 @@ function ProgressView() {
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{t("discover.progress", { percent: scanProgress, path: currentPath })}</span>
-        <span>
+      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span className="truncate min-w-0">{t("discover.progress", { percent: scanProgress, path: currentPath })}</span>
+        <span className="shrink-0">
           {t("discover.foundSoFar", {
             skills: skillsFoundSoFar,
             projects: projectsFoundSoFar,
@@ -769,6 +769,7 @@ export function DiscoverView() {
             file_path: installTargetSkill.file_path,
             is_central: false,
             linked_agents: [],
+            agent_link_types: [],
             scanned_at: new Date().toISOString(),
           } as SkillWithLinks}
           agents={platformAgents}

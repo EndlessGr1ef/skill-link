@@ -131,7 +131,7 @@ export function DiscoverConfigDialog({ open, onOpenChange }: DiscoverConfigDialo
           <DialogDescription>{t("discover.desc")}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-hidden">
           {/* Scan Roots */}
           <div>
             <h3 className="text-sm font-medium mb-2">{t("discover.scanRoots")}</h3>
