@@ -14,8 +14,8 @@ i18n
       en: { translation: en },
     },
     // No hardcoded lng — let languageDetector read from localStorage.
-    // Falls back to Chinese when no preference is saved.
-    fallbackLng: "zh",
+    // Falls back to English when no preference is saved.
+    fallbackLng: "en",
     // Use localStorage key 'i18nextLng' (i18next default) to persist choice.
     detection: {
       order: ["localStorage", "navigator"],
