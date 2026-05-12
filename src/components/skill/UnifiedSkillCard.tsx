@@ -227,14 +227,28 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
             {onDetail ? (
               <button
                 ref={detailButtonRef}
-                className="font-medium text-sm text-foreground truncate hover:text-primary hover:underline text-left min-w-0 flex-1"
+                className="font-medium text-sm text-foreground truncate hover:text-primary hover:underline text-left min-w-0 flex-1 inline-flex items-center gap-1.5"
                 onClick={onDetail}
                 aria-label={t("central.viewDetailsLabel", { name })}
               >
-                {name}
+                <span className="truncate">{name}</span>
+                {isSymlink && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/50 px-1 py-0 rounded shrink-0">
+                    <Link2 className="size-2.5" />
+                    {t("central.dynamicLink")}
+                  </span>
+                )}
               </button>
             ) : (
-              <h3 className="text-sm font-medium truncate min-w-0 flex-1">{name}</h3>
+              <h3 className="text-sm font-medium truncate min-w-0 flex-1 inline-flex items-center gap-1.5">
+                <span className="truncate">{name}</span>
+                {isSymlink && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground bg-muted/50 px-1 py-0 rounded shrink-0">
+                    <Link2 className="size-2.5" />
+                    {t("central.dynamicLink")}
+                  </span>
+                )}
+              </h3>
             )}
 
             {/* Icon action buttons */}
@@ -335,14 +349,6 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
                 <Globe className="size-3" />
                 {t("discover.alreadyCentral")}
-              </span>
-            )}
-
-            {/* Symlink indicator (central) */}
-            {isSymlink && (
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                <Link2 className="size-3" />
-                {t("central.dynamicLink")}
               </span>
             )}
 

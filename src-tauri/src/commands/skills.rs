@@ -428,11 +428,21 @@ pub async fn get_central_skills(state: State<'_, AppState>) -> Result<Vec<SkillW
         let linked_agents: Vec<String> = installations.into_iter().map(|i| i.agent_id).collect();
         let (created_at, updated_at) = skill_filesystem_timestamps(&skill);
 
-        let is_symlink = Path::new(&skill.file_path)
-            .parent()
-            .and_then(|p| std::fs::symlink_metadata(p).ok())
-            .map(|m| m.file_type().is_symlink())
-            .unwrap_or(false);
+        let is_symlink = skill
+            .canonical_path
+            .as_deref()
+            .map(|p| {
+                std::fs::symlink_metadata(p)
+                    .map(|m| m.file_type().is_symlink())
+                    .unwrap_or(false)
+            })
+            .unwrap_or_else(|| {
+                Path::new(&skill.file_path)
+                    .parent()
+                    .and_then(|p| std::fs::symlink_metadata(p).ok())
+                    .map(|m| m.file_type().is_symlink())
+                    .unwrap_or(false)
+            });
 
         result.push(SkillWithLinks {
             id: skill.id,
@@ -899,11 +909,21 @@ mod tests {
             let linked_agents: Vec<String> =
                 installations.into_iter().map(|i| i.agent_id).collect();
             let (created_at, updated_at) = skill_filesystem_timestamps(&skill);
-            let is_symlink = Path::new(&skill.file_path)
-                .parent()
-                .and_then(|p| std::fs::symlink_metadata(p).ok())
-                .map(|m| m.file_type().is_symlink())
-                .unwrap_or(false);
+            let is_symlink = skill
+                .canonical_path
+                .as_deref()
+                .map(|p| {
+                    std::fs::symlink_metadata(p)
+                        .map(|m| m.file_type().is_symlink())
+                        .unwrap_or(false)
+                })
+                .unwrap_or_else(|| {
+                    Path::new(&skill.file_path)
+                        .parent()
+                        .and_then(|p| std::fs::symlink_metadata(p).ok())
+                        .map(|m| m.file_type().is_symlink())
+                        .unwrap_or(false)
+                });
             result.push(SkillWithLinks {
                 id: skill.id,
                 name: skill.name,
