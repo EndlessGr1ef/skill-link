@@ -13,7 +13,7 @@ import { InstallDialog } from "@/components/central/InstallDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AgentWithStatus, ScannedSkill, SkillWithLinks } from "@/types";
-import { GitHubRepoImportWizard } from "@/components/marketplace/GitHubRepoImportWizard";
+import { GitRepoImportWizard } from "@/components/marketplace/GitRepoImportWizard";
 import { useMarketplaceStore } from "@/stores/marketplaceStore";
 import { VirtualizedList } from "@/components/ui/virtualized-list";
 import { formatPathForDisplay } from "@/lib/path";
@@ -223,6 +223,8 @@ export function CentralSkillsView() {
     noopImportGitHubRepoSkills;
   const resetGitHubImport =
     useMarketplaceStore((state) => state.resetGitHubImport) ?? noopResetGitHubImport;
+  const setGitHubImportBranch =
+    useMarketplaceStore((state) => state.setGitHubImportBranch) ?? (() => {});
 
   type SortField = "name" | "createdAt" | "updatedAt";
   type SortDirection = "asc" | "desc";
@@ -415,7 +417,7 @@ export function CentralSkillsView() {
 
   async function handleGitHubPreview() {
     try {
-      return await previewGitHubRepoImport(githubRepoUrl);
+      return await previewGitHubRepoImport(githubRepoUrl, githubImport.branch);
     } catch {
       return null;
     }
@@ -425,7 +427,7 @@ export function CentralSkillsView() {
     selections: Parameters<typeof importGitHubRepoSkills>[1]
   ) {
     try {
-      const result = await importGitHubRepoSkills(githubRepoUrl, selections);
+      const result = await importGitHubRepoSkills(githubRepoUrl, selections, githubImport.branch);
       await Promise.all([refreshCounts(), loadCentralSkills()]);
       toast.success(t("marketplace.githubImportCentralSuccess"));
       return result;
@@ -707,11 +709,13 @@ export function CentralSkillsView() {
         }
       />
 
-      <GitHubRepoImportWizard
+      <GitRepoImportWizard
         open={isGitHubImportOpen}
         onOpenChange={setIsGitHubImportOpen}
         repoUrl={githubRepoUrl}
         onRepoUrlChange={setGitHubRepoUrl}
+        branch={githubImport.branch}
+        onBranchChange={setGitHubImportBranch}
         preview={githubImport.preview}
         previewError={githubImport.error}
         isPreviewLoading={githubImport.isPreviewLoading}

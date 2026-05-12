@@ -101,6 +101,11 @@ pub fn run() {
             commands::github_import::fetch_github_skill_markdown,
             commands::github_import::browse_github_skill_directory,
             commands::github_import::install_github_skill_directory,
+            // Git Import (unified: GitHub HTTP + generic git clone)
+            commands::git_import::preview_git_repo_import,
+            commands::git_import::import_git_repo_skills,
+            commands::git_import::browse_git_skill_directory,
+            commands::git_import::fetch_git_skill_markdown,
             // Marketplace
             commands::marketplace::list_registries,
             commands::marketplace::add_registry,

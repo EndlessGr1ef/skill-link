@@ -1,6 +1,7 @@
 pub mod agents;
 pub mod collections;
 pub mod discover;
+pub mod git_import;
 pub mod github_import;
 pub mod linker;
 pub mod marketplace;

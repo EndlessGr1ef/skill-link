@@ -7,7 +7,7 @@ import {
   MarketplaceSkill,
   SkillsShSkill,
   GitHubRepoPreview,
-  GitHubRepoImportResult,
+  GitRepoImportResult,
   GitHubSkillImportSelection,
   GitHubImportProgressPayload,
 } from "@/types";
@@ -16,13 +16,14 @@ interface GitHubImportState {
   isPreviewLoading: boolean;
   isImporting: boolean;
   preview: GitHubRepoPreview | null;
-  importResult: GitHubRepoImportResult | null;
+  importResult: GitRepoImportResult | null;
   previewedRepoUrl: string | null;
   error: string | null;
   importProgress: GitHubImportProgressPayload | null;
   importStartedAt: number | null;
   skillMarkdown: Record<string, SkillMarkdownEntry>;
   aiSummaries: Record<string, GitHubImportAiSummaryEntry>;
+  branch: string | null;
 }
 
 export interface SkillMarkdownEntry {
@@ -64,11 +65,12 @@ interface MarketplaceState {
   removeRegistry: (registryId: string) => Promise<void>;
   getNormalizedRegistryIdentity: (url: string) => string | null;
   findDuplicateRegistry: (url: string) => SkillRegistry | null;
-  previewGitHubRepoImport: (repoUrl: string) => Promise<GitHubRepoPreview>;
+  previewGitHubRepoImport: (repoUrl: string, branch?: string | null) => Promise<GitHubRepoPreview>;
   importGitHubRepoSkills: (
     repoUrl: string,
-    selections: GitHubSkillImportSelection[]
-  ) => Promise<GitHubRepoImportResult>;
+    selections: GitHubSkillImportSelection[],
+    branch?: string | null
+  ) => Promise<GitRepoImportResult>;
   fetchGitHubSkillMarkdown: (sourcePath: string, downloadUrl: string) => Promise<void>;
   generateGitHubImportAiSummary: (
     sourcePath: string,
@@ -78,6 +80,7 @@ interface MarketplaceState {
     refresh?: boolean
   ) => Promise<void>;
   resetGitHubImport: () => void;
+  setGitHubImportBranch: (branch: string | null) => void;
   // skills.sh search
   searchSkillsSh: (query: string) => Promise<void>;
   installFromSkillsSh: (source: string, skillId: string) => Promise<void>;
@@ -94,6 +97,7 @@ const initialGitHubImportState = (): GitHubImportState => ({
   importStartedAt: null,
   skillMarkdown: {},
   aiSummaries: {},
+  branch: null,
 });
 
 let unlistenGitHubImportProgress: UnlistenFn | null = null;
@@ -112,7 +116,7 @@ function cleanupGitHubImportAiSummaryListener(sourcePath?: string) {
   githubImportAiUnlisteners.clear();
 }
 
-async function setupGitHubImportEventListeners(
+async function setupGitImportEventListeners(
   set: (
     fn:
       | Partial<MarketplaceState>
@@ -125,7 +129,7 @@ async function setupGitHubImportEventListeners(
   }
 
   unlistenGitHubImportProgress = await listen<GitHubImportProgressPayload>(
-    "github-import:progress",
+    "git-import:progress",
     (event) => {
       set((state) => ({
         githubImport: {
@@ -306,9 +310,9 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     }));
   },
 
-  previewGitHubRepoImport: async (repoUrl: string) => {
+  previewGitHubRepoImport: async (repoUrl: string, branch?: string | null) => {
     if (!isTauriRuntime()) {
-      const error = "Desktop-only feature: GitHub repo preview is available in the Tauri app.";
+      const error = "Desktop-only feature: Git repo preview is available in the Tauri app.";
       set((state) => ({
         githubImport: {
           ...state.githubImport,
@@ -334,12 +338,14 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
         error: null,
         importProgress: null,
         importStartedAt: null,
+        branch: branch ?? null,
       },
     }));
 
     try {
-      const preview = await invoke<GitHubRepoPreview>("preview_github_repo_import", {
+      const preview = await invoke<GitHubRepoPreview>("preview_git_repo_import", {
         repoUrl,
+        branch: branch ?? null,
       });
       set((state) => ({
         githubImport: {
@@ -371,9 +377,9 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     }
   },
 
-  importGitHubRepoSkills: async (repoUrl: string, selections: GitHubSkillImportSelection[]) => {
+  importGitHubRepoSkills: async (repoUrl: string, selections: GitHubSkillImportSelection[], branch?: string | null) => {
     if (!isTauriRuntime()) {
-      const error = "Desktop-only feature: GitHub repo import is available in the Tauri app.";
+      const error = "Desktop-only feature: Git repo import is available in the Tauri app.";
       set((state) => ({
         githubImport: {
           ...state.githubImport,
@@ -405,11 +411,12 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     }));
 
     try {
-      await setupGitHubImportEventListeners(set);
+      await setupGitImportEventListeners(set);
 
-      const importResult = await invoke<GitHubRepoImportResult>("import_github_repo_skills", {
+      const importResult = await invoke<GitRepoImportResult>("import_git_repo_skills", {
         repoUrl,
         selections,
+        branch: branch ?? null,
       });
       set((state) => ({
         githubImport: {
@@ -469,9 +476,20 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     }));
 
     try {
-      const content = await invoke<string>("fetch_github_skill_markdown", {
-        downloadUrl,
-      });
+      let content: string;
+      if (downloadUrl.startsWith("https://raw.githubusercontent.com/")) {
+        content = await invoke<string>("fetch_github_skill_markdown", {
+          downloadUrl,
+        });
+      } else {
+        const { previewedRepoUrl, branch } = get().githubImport;
+        const repoUrl = previewedRepoUrl || downloadUrl;
+        content = await invoke<string>("fetch_git_skill_markdown", {
+          repoUrl,
+          branch: branch || null,
+          filePath: sourcePath,
+        });
+      }
       set((state) => ({
         githubImport: {
           ...state.githubImport,
@@ -638,6 +656,12 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
         },
       }));
     }
+  },
+
+  setGitHubImportBranch: (branch: string | null) => {
+    set((state) => ({
+      githubImport: { ...state.githubImport, branch },
+    }));
   },
 
   searchSkillsSh: async (query: string) => {

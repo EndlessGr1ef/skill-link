@@ -392,7 +392,7 @@ pub async fn install_github_skill_directory(
     Ok(skill_name)
 }
 
-async fn preview_github_repo_import_impl(
+pub(crate) async fn preview_github_repo_import_impl(
     pool: &DbPool,
     repo_url: &str,
 ) -> Result<GitHubRepoPreview, String> {
@@ -411,7 +411,7 @@ async fn preview_github_repo_import_impl(
     Ok(GitHubRepoPreview { repo, skills })
 }
 
-async fn import_github_repo_skills_impl(
+pub(crate) async fn import_github_repo_skills_impl(
     pool: &DbPool,
     repo_url: &str,
     selections: Vec<GitHubSkillImportSelection>,
@@ -672,14 +672,14 @@ fn cleanup_created_directories(paths: &[PathBuf]) {
     }
 }
 
-async fn central_skills_root(pool: &DbPool) -> Result<PathBuf, String> {
+pub(crate) async fn central_skills_root(pool: &DbPool) -> Result<PathBuf, String> {
     let central = db::get_agent_by_id(pool, "central")
         .await?
         .ok_or_else(|| "Central agent not found in database".to_string())?;
     Ok(PathBuf::from(central.global_skills_dir))
 }
 
-async fn current_central_skill_ids(pool: &DbPool) -> Result<HashSet<String>, String> {
+pub(crate) async fn current_central_skill_ids(pool: &DbPool) -> Result<HashSet<String>, String> {
     let rows = sqlx::query("SELECT id FROM skills WHERE is_central = 1")
         .fetch_all(pool)
         .await
@@ -690,7 +690,7 @@ async fn current_central_skill_ids(pool: &DbPool) -> Result<HashSet<String>, Str
         .collect::<HashSet<_>>())
 }
 
-async fn build_preview_skills(
+pub(crate) async fn build_preview_skills(
     pool: &DbPool,
     candidates: &[RemoteSkillCandidate],
 ) -> Result<Vec<GitHubSkillPreview>, String> {
@@ -891,14 +891,14 @@ fn build_repo_skill_candidates_from_snapshot(
 }
 
 #[derive(Debug, Clone)]
-struct SnapshotSkillManifest {
-    source_path: String,
-    root_directory: String,
-    skill_directory_name: String,
-    skill_md_path: String,
+pub(crate) struct SnapshotSkillManifest {
+    pub(crate) source_path: String,
+    pub(crate) root_directory: String,
+    pub(crate) skill_directory_name: String,
+    pub(crate) skill_md_path: String,
 }
 
-fn classify_skill_manifest_path(path: &str) -> Option<SnapshotSkillManifest> {
+pub(crate) fn classify_skill_manifest_path(path: &str) -> Option<SnapshotSkillManifest> {
     let normalized = path.trim_matches('/');
     if normalized.is_empty() {
         return None;
@@ -1058,9 +1058,9 @@ fn relative_archive_path<R: Read>(entry: &tar::Entry<'_, R>) -> Result<String, S
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SnapshotSourceFile {
-    repo_path: String,
-    relative_path: String,
-    byte_len: usize,
+    pub(crate) repo_path: String,
+    pub(crate) relative_path: String,
+    pub(crate) byte_len: usize,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1175,7 +1175,7 @@ fn emit_github_import_progress(app: Option<&AppHandle>, payload: GitHubImportPro
     }
 }
 
-fn is_safe_repo_relative_path(path: &str) -> bool {
+pub(crate) fn is_safe_repo_relative_path(path: &str) -> bool {
     let relative = Path::new(path);
     !relative.is_absolute()
         && relative
@@ -1628,7 +1628,7 @@ pub(crate) fn parse_frontmatter(content: &str) -> Option<SkillFrontmatter> {
     serde_yaml::from_str::<SkillFrontmatter>(&rest[..end]).ok()
 }
 
-fn sanitize_skill_id(raw: &str) -> Result<String, String> {
+pub(crate) fn sanitize_skill_id(raw: &str) -> Result<String, String> {
     let lowered = raw.trim().to_lowercase();
     let mut sanitized = String::new();
     let mut last_was_dash = false;

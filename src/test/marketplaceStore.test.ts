@@ -41,6 +41,7 @@ describe("marketplaceStore", () => {
         importStartedAt: null,
         skillMarkdown: {},
         aiSummaries: {},
+        branch: null,
       },
     });
   });
@@ -286,8 +287,9 @@ describe("marketplaceStore", () => {
         .previewGitHubRepoImport("https://github.com/anthropics/skills")
     ).resolves.toEqual(preview);
 
-    expect(mockInvoke).toHaveBeenCalledWith("preview_github_repo_import", {
+    expect(mockInvoke).toHaveBeenCalledWith("preview_git_repo_import", {
       repoUrl: "https://github.com/anthropics/skills",
+      branch: null,
     });
     expect(useMarketplaceStore.getState().githubImport.preview).toEqual(preview);
     expect(useMarketplaceStore.getState().githubImport.previewedRepoUrl).toBe(
@@ -303,7 +305,7 @@ describe("marketplaceStore", () => {
       useMarketplaceStore
         .getState()
         .previewGitHubRepoImport("https://github.com/anthropics/skills")
-    ).rejects.toThrow("Desktop-only feature: GitHub repo preview is available in the Tauri app.");
+    ).rejects.toThrow("Desktop-only feature: Git repo preview is available in the Tauri app.");
 
     expect(mockInvoke).not.toHaveBeenCalled();
     expect(useMarketplaceStore.getState().githubImport.error).toContain("Desktop-only feature");
@@ -345,7 +347,7 @@ describe("marketplaceStore", () => {
       ])
     ).resolves.toEqual(result);
 
-    expect(mockInvoke).toHaveBeenCalledWith("import_github_repo_skills", {
+    expect(mockInvoke).toHaveBeenCalledWith("import_git_repo_skills", {
       repoUrl: "https://github.com/dorukardahan/twitterapi-io-skill",
       selections: [
         {
@@ -354,6 +356,7 @@ describe("marketplaceStore", () => {
           renamedSkillId: null,
         },
       ],
+      branch: null,
     });
     expect(useMarketplaceStore.getState().githubImport.importResult).toEqual(result);
     expect(useMarketplaceStore.getState().githubImport.isImporting).toBe(false);
@@ -370,7 +373,7 @@ describe("marketplaceStore", () => {
           renamedSkillId: null,
         },
       ])
-    ).rejects.toThrow("Desktop-only feature: GitHub repo import is available in the Tauri app.");
+    ).rejects.toThrow("Desktop-only feature: Git repo import is available in the Tauri app.");
 
     expect(mockInvoke).not.toHaveBeenCalled();
     expect(useMarketplaceStore.getState().githubImport.error).toContain("Desktop-only feature");
@@ -404,7 +407,7 @@ describe("marketplaceStore", () => {
     let progressHandler: GitHubImportProgressHandler | null = null;
 
     mockListen.mockImplementation(async (eventName, handler) => {
-      if (eventName === "github-import:progress") {
+      if (eventName === "git-import:progress") {
         progressHandler = handler as GitHubImportProgressHandler;
       }
       return vi.fn();
@@ -431,7 +434,7 @@ describe("marketplaceStore", () => {
 
     expect(useMarketplaceStore.getState().githubImport.importStartedAt).not.toBeNull();
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("import_github_repo_skills", {
+      expect(mockInvoke).toHaveBeenCalledWith("import_git_repo_skills", {
         repoUrl: "https://github.com/dorukardahan/twitterapi-io-skill",
         selections: [
           {
@@ -440,6 +443,7 @@ describe("marketplaceStore", () => {
             renamedSkillId: null,
           },
         ],
+        branch: null,
       });
       expect(resolveImport).not.toBeNull();
     });

@@ -27,8 +27,8 @@ vi.mock("@/components/marketplace/MarketplaceSkillDetailDrawer", () => ({
   MarketplaceSkillDetailDrawer: () => null,
 }));
 
-vi.mock("@/components/marketplace/GitHubRepoImportWizard", () => ({
-  GitHubRepoImportWizard: () => null,
+vi.mock("@/components/marketplace/GitRepoImportWizard", () => ({
+  GitRepoImportWizard: () => null,
 }));
 
 function normalizeRegistryIdentity(url: string): string | null {

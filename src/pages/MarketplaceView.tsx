@@ -29,7 +29,7 @@ import {
   SkillTag,
 } from "@/data/officialSources";
 import { MarketplaceSkillDetailDrawer, type MarketplaceSkillDetail } from "@/components/marketplace/MarketplaceSkillDetailDrawer";
-import { GitHubRepoImportWizard } from "@/components/marketplace/GitHubRepoImportWizard";
+import { GitRepoImportWizard } from "@/components/marketplace/GitRepoImportWizard";
 import { invoke, isTauriRuntime } from "@/lib/tauri";
 import { fetchRemoteText, installRemoteSkillDirectory } from "@/lib/remoteContent";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,7 @@ export function MarketplaceView() {
   const previewGitHubRepoImport = useMarketplaceStore((s) => s.previewGitHubRepoImport);
   const importGitHubRepoSkills = useMarketplaceStore((s) => s.importGitHubRepoSkills);
   const resetGitHubImport = useMarketplaceStore((s) => s.resetGitHubImport);
+  const setGitHubImportBranch = useMarketplaceStore((s) => s.setGitHubImportBranch);
   const skillsShResults = useMarketplaceStore((s) => s.skillsShResults);
   const isSkillsShLoading = useMarketplaceStore((s) => s.isSkillsShLoading);
   const searchSkillsSh = useMarketplaceStore((s) => s.searchSkillsSh);
@@ -250,8 +251,9 @@ export function MarketplaceView() {
         }
       }
 
-      const preview = await invoke<GitHubRepoPreview>("preview_github_repo_import", {
+      const preview = await invoke<GitHubRepoPreview>("preview_git_repo_import", {
         repoUrl,
+        branch: null,
       });
       const nextPreviewSkills = preview.skills.map((skill) => ({
         id: skill.skillId,
@@ -319,7 +321,7 @@ export function MarketplaceView() {
 
   async function handleGitHubPreview() {
     try {
-      return await previewGitHubRepoImport(githubRepoUrl);
+      return await previewGitHubRepoImport(githubRepoUrl, githubImport.branch);
     } catch {
       return null;
     }
@@ -327,10 +329,10 @@ export function MarketplaceView() {
 
   async function handleGitHubImport(selections: Parameters<typeof importGitHubRepoSkills>[1]) {
     try {
-      const result = await importGitHubRepoSkills(githubRepoUrl, selections);
+      const result = await importGitHubRepoSkills(githubRepoUrl, selections, githubImport.branch);
       await Promise.all([rescan(), loadRegistries(), loadCentralSkills()]);
       toast.success(
-        lang === "zh" ? "GitHub 仓库技能已导入中央技能库" : "GitHub repo skills imported to Central"
+        lang === "zh" ? "Git 仓库技能已导入中央技能库" : "Git repo skills imported to Central"
       );
       return result;
     } catch (err) {
@@ -847,11 +849,13 @@ export function MarketplaceView() {
         />
       )}
 
-      <GitHubRepoImportWizard
+      <GitRepoImportWizard
         open={isGitHubImportOpen}
         onOpenChange={setIsGitHubImportOpen}
         repoUrl={githubRepoUrl}
         onRepoUrlChange={setGitHubRepoUrl}
+        branch={githubImport.branch}
+        onBranchChange={setGitHubImportBranch}
         preview={githubImport.preview}
         previewError={githubImport.error}
         isPreviewLoading={githubImport.isPreviewLoading}

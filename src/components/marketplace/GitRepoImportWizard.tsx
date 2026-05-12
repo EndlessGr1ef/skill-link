@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
   DuplicateResolution,
-  GitHubRepoImportResult,
+  GitRepoImportResult,
   GitHubRepoPreview,
   GitHubSkillImportSelection,
   GitHubSkillPreview,
@@ -64,20 +64,22 @@ type SelectionState = {
 
 type DetailTab = "overview" | "ai";
 
-interface GitHubRepoImportWizardProps {
+interface GitRepoImportWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   repoUrl: string;
   onRepoUrlChange: (value: string) => void;
+  branch?: string | null;
+  onBranchChange?: (branch: string | null) => void;
   preview: GitHubRepoPreview | null;
   previewError: string | null;
   isPreviewLoading: boolean;
   isImporting: boolean;
-  importResult: GitHubRepoImportResult | null;
+  importResult: GitRepoImportResult | null;
   onPreview: () => Promise<GitHubRepoPreview | null> | GitHubRepoPreview | null;
   onImport: (
     selections: GitHubSkillImportSelection[],
-  ) => Promise<GitHubRepoImportResult | void> | GitHubRepoImportResult | void;
+  ) => Promise<GitRepoImportResult | void> | GitRepoImportResult | void;
   onReset: () => void;
   launcherLabel: string;
   availableAgents?: AgentWithStatus[];
@@ -88,7 +90,7 @@ interface GitHubRepoImportWizardProps {
     method: "symlink" | "copy",
   ) => Promise<void>;
   onAfterImportSuccess?: (
-    result: GitHubRepoImportResult,
+    result: GitRepoImportResult,
   ) => Promise<void> | void;
   onOpenCentral?: () => void;
 }
@@ -113,19 +115,21 @@ function normalizeMessage(message: string) {
   return message.replace(/^Error:\s*/, "");
 }
 
-function looksLikeGitHubAuthGuidance(message: string) {
-  return /github|rate limit|personal access token|pat|settings/i.test(message);
+function looksLikeGitAuthGuidance(message: string) {
+  return /github|rate limit|personal access token|pat|settings|authentication failed|credential|permission denied|ssh key/i.test(message);
 }
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value));
 }
 
-export function GitHubRepoImportWizard({
+export function GitRepoImportWizard({
   open,
   onOpenChange,
   repoUrl,
   onRepoUrlChange,
+  branch = null,
+  onBranchChange,
   preview,
   previewError,
   isPreviewLoading,
@@ -140,7 +144,7 @@ export function GitHubRepoImportWizard({
   onInstallImportedSkill,
   onAfterImportSuccess,
   onOpenCentral,
-}: GitHubRepoImportWizardProps) {
+}: GitRepoImportWizardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState<WizardStep>(() =>
@@ -235,7 +239,7 @@ export function GitHubRepoImportWizard({
   }, [preview, selectedSkillPath]);
   const previewToolbarRepoHref = useMemo(() => {
     if (!preview) return null;
-    return `https://github.com/${preview.repo.owner}/${preview.repo.repo}`;
+    return preview.repo.normalizedUrl;
   }, [preview]);
 
   const blockingConflict = useMemo(() => {
@@ -584,16 +588,16 @@ export function GitHubRepoImportWizard({
       <div className="mt-4 rounded-xl border border-border/70 bg-muted/10 p-4">
         <label
           className="mb-2 block text-sm font-medium"
-          htmlFor="github-repo-url"
+          htmlFor="git-repo-url"
         >
           {t("marketplace.githubRepoUrl")}
         </label>
         <div className="flex gap-2">
           <Input
-            id="github-repo-url"
+            id="git-repo-url"
             value={repoUrl}
             onChange={(event) => onRepoUrlChange(event.target.value)}
-            placeholder="https://github.com/owner/repo"
+            placeholder={t("marketplace.gitImportUrlPlaceholder")}
             className="flex-1"
           />
           <Button
@@ -607,6 +611,24 @@ export function GitHubRepoImportWizard({
             )}
             <span>{t("marketplace.previewImport")}</span>
           </Button>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <label
+            className="shrink-0 text-xs font-medium text-muted-foreground"
+            htmlFor="git-repo-branch"
+          >
+            {t("marketplace.gitImportBranchLabel")}
+          </label>
+          <Input
+            id="git-repo-branch"
+            value={branch ?? ""}
+            onChange={(event) => onBranchChange?.(event.target.value || null)}
+            placeholder={t("marketplace.gitImportBranchPlaceholder")}
+            className="h-8 max-w-[12rem] text-sm"
+          />
+          <span className="text-xs text-muted-foreground">
+            {t("marketplace.gitImportBranchHint")}
+          </span>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {browserMode
@@ -627,7 +649,7 @@ export function GitHubRepoImportWizard({
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <div className="space-y-2">
                 <span className="block">{normalizeMessage(previewError)}</span>
-                {looksLikeGitHubAuthGuidance(previewError) ? (
+                {looksLikeGitAuthGuidance(previewError) ? (
                   <span className="block text-xs text-destructive/90">
                     {t("marketplace.githubPatSettingsHint")}
                   </span>
@@ -785,7 +807,7 @@ export function GitHubRepoImportWizard({
     );
   }
 
-  function renderImportResultHub(currentImportResult: GitHubRepoImportResult) {
+  function renderImportResultHub(currentImportResult: GitRepoImportResult) {
     return (
       <div
         className="flex h-full min-h-0 flex-col overflow-hidden"

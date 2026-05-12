@@ -363,6 +363,15 @@ export interface GitHubImportProgressPayload {
   totalBytes: number;
 }
 
+export type GitHost = "GitHub" | "Generic";
+
+export interface GitRepoImportResult {
+  repo: GitHubRepoRef;
+  host: GitHost;
+  importedSkills: ImportedGitHubSkillSummary[];
+  skippedSkills: string[];
+}
+
 // ─── Skill Update Types ───────────────────────────────────────────────────────
 
 export type UpdateStatus =
