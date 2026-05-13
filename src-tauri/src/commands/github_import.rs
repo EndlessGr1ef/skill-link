@@ -936,6 +936,16 @@ pub(crate) fn classify_skill_manifest_path(path: &str) -> Option<SnapshotSkillMa
                 skill_md_path: normalized.to_string(),
             })
         }
+        // One-level nested skills/: group/skills/xxx/SKILL.md, group/skills/xxx/yyy/SKILL.md, …
+        _ if source_parts.len() >= 3 && source_parts[1] == "skills" => {
+            let skills_sub = &source_parts[1..];
+            Some(SnapshotSkillManifest {
+                source_path: source_parts.join("/"),
+                root_directory: source_parts[..source_parts.len() - 1].join("/"),
+                skill_directory_name: skills_sub.last()?.to_string(),
+                skill_md_path: normalized.to_string(),
+            })
+        }
         _ => None,
     }
 }
@@ -2213,6 +2223,48 @@ mod tests {
             .skills
             .iter()
             .any(|skill| skill.source_path == "skills/.system/skill-creator"));
+    }
+
+    #[test]
+    fn classify_skill_manifest_path_supports_one_level_nested_skills() {
+        // group/skills/xxx/SKILL.md
+        let manifest = classify_skill_manifest_path("sdk-skills/skills/agent-planner/SKILL.md")
+            .expect("nested skills");
+        assert_eq!(manifest.source_path, "sdk-skills/skills/agent-planner");
+        assert_eq!(manifest.root_directory, "sdk-skills/skills");
+        assert_eq!(manifest.skill_directory_name, "agent-planner");
+    }
+
+    #[test]
+    fn classify_skill_manifest_path_supports_deep_nested_under_group_skills() {
+        // group/skills/a/b/SKILL.md
+        let manifest = classify_skill_manifest_path("sdk-skills/skills/.curated/openai-docs/SKILL.md")
+            .expect("deep nested");
+        assert_eq!(manifest.source_path, "sdk-skills/skills/.curated/openai-docs");
+        assert_eq!(manifest.root_directory, "sdk-skills/skills/.curated");
+        assert_eq!(manifest.skill_directory_name, "openai-docs");
+    }
+
+    #[test]
+    fn classify_skill_manifest_path_rejects_two_levels_above_skills() {
+        // a/b/skills/xxx/SKILL.md — too deep, not supported
+        assert!(classify_skill_manifest_path("a/b/skills/xxx/SKILL.md").is_none());
+    }
+
+    #[test]
+    fn classify_skill_manifest_path_root_skills_still_works() {
+        let manifest = classify_skill_manifest_path("skills/demo/SKILL.md").expect("root skills");
+        assert_eq!(manifest.source_path, "skills/demo");
+        assert_eq!(manifest.root_directory, "skills");
+        assert_eq!(manifest.skill_directory_name, "demo");
+    }
+
+    #[test]
+    fn classify_skill_manifest_path_root_dir_skill_still_works() {
+        let manifest = classify_skill_manifest_path("my-skill/SKILL.md").expect("root dir");
+        assert_eq!(manifest.source_path, "my-skill");
+        assert_eq!(manifest.root_directory, "/");
+        assert_eq!(manifest.skill_directory_name, "my-skill");
     }
 
     #[tokio::test]

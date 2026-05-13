@@ -487,7 +487,7 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
         content = await invoke<string>("fetch_git_skill_markdown", {
           repoUrl,
           branch: branch || null,
-          filePath: sourcePath,
+          filePath: sourcePath === "." ? "SKILL.md" : `${sourcePath}/SKILL.md`,
         });
       }
       set((state) => ({

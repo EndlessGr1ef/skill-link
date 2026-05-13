@@ -106,6 +106,42 @@ fn check_git_available() -> Result<(), String> {
     Ok(())
 }
 
+/// Convert a Bitbucket/Git web browsing URL into a Git clone URL.
+/// e.g. https://git.rakuten-it.com/users/USER/repos/REPO/browse/skills
+///   -> https://git.rakuten-it.com/users/USER/repos/REPO.git
+/// e.g. https://git.rakuten-it.com/projects/PROJ/repos/REPO/browse
+///   -> https://git.rakuten-it.com/projects/PROJ/repos/REPO.git
+fn normalize_git_clone_url(url: &str) -> String {
+    let trimmed = url.trim();
+
+    // Only try to normalize HTTPS URLs
+    if !trimmed.starts_with("https://") && !trimmed.starts_with("http://") {
+        return trimmed.to_string();
+    }
+
+    if let Ok(parsed) = reqwest::Url::parse(trimmed) {
+        let path = parsed.path();
+
+        // Bitbucket Data Center / Server: /browse or /browse/... suffix
+        if let Some(browse_pos) = path.find("/browse") {
+            let suffix = &path[browse_pos + 7..];
+            if suffix.is_empty() || suffix.starts_with('/') {
+                let clone_path = &path[..browse_pos];
+                let mut new_parsed = parsed.clone();
+                new_parsed.set_path(clone_path);
+                // Don't add .git if it already ends with .git
+                let mut result = new_parsed.to_string();
+                if !result.ends_with(".git") {
+                    result.push_str(".git");
+                }
+                return result;
+            }
+        }
+    }
+
+    trimmed.to_string()
+}
+
 /// Validate that a git URL uses an allowed scheme.
 /// Rejects file://, local paths, and other dangerous schemes.
 fn validate_git_url(url: &str) -> Result<(), String> {
@@ -157,8 +193,9 @@ fn validate_branch_name(branch: &str) -> Result<(), String> {
 
 /// Clone a git repository to a temporary directory with `--depth 1`.
 /// Returns a `TempDirGuard` that auto-cleans the temp directory on drop.
-fn clone_repo_to_temp(url: &str, branch: Option<&str>) -> Result<TempDirGuard, String> {
-    validate_git_url(url)?;
+fn clone_repo_to_temp(url: &str, branch: Option<&str>, host: &GitHost) -> Result<TempDirGuard, String> {
+    let clone_url = normalize_git_clone_url(url);
+    validate_git_url(&clone_url)?;
     if let Some(branch) = branch {
         validate_branch_name(branch)?;
     }
@@ -182,7 +219,7 @@ fn clone_repo_to_temp(url: &str, branch: Option<&str>) -> Result<TempDirGuard, S
     // Use -- to prevent git from interpreting URL as a flag
     // (e.g. --upload-pack=evil or --config=core.sshCommand=evil)
     cmd.arg("--")
-        .arg(url)
+        .arg(&clone_url)
         .arg(&temp_dir)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
@@ -195,18 +232,21 @@ fn clone_repo_to_temp(url: &str, branch: Option<&str>) -> Result<TempDirGuard, S
         let stderr = String::from_utf8_lossy(&output.stderr);
         let _ = std::fs::remove_dir_all(&temp_dir);
 
+        let safe_url = strip_credentials_from_url(&clone_url);
         let stderr_lower = stderr.to_lowercase();
+
         if stderr_lower.contains("not found") || stderr_lower.contains("could not read") {
-            return Err(format!("Repository not found: {}. Please verify the URL is correct and the repository exists.", strip_credentials_from_url(url)));
+            return Err(format!("Repository not found: {}. Please verify the URL is correct and the repository exists.", safe_url));
         }
         if stderr_lower.contains("authentication failed") || stderr_lower.contains("permission denied") || stderr_lower.contains("could not read from remote") {
-            return Err(format!(
-                "Authentication failed for {}. Please ensure your Git credentials are configured (SSH key, credential helper, or .netrc).",
-                strip_credentials_from_url(url)
-            ));
+            let hint = match host {
+                GitHost::GitHub => "Please ensure your GitHub credentials are configured (personal access token in Settings, SSH key, or credential helper).",
+                GitHost::Generic => "Please ensure your Git credentials are configured (SSH key, credential helper, or .netrc).",
+            };
+            return Err(format!("Authentication failed for {}. {}", safe_url, hint));
         }
         if stderr_lower.contains("repository not found") {
-            return Err(format!("Repository not found: {}", strip_credentials_from_url(url)));
+            return Err(format!("Repository not found: {}", safe_url));
         }
         if let Some(branch) = branch {
             if stderr_lower.contains("remote branch") && stderr_lower.contains("not found") {
@@ -214,7 +254,11 @@ fn clone_repo_to_temp(url: &str, branch: Option<&str>) -> Result<TempDirGuard, S
             }
         }
 
-        return Err("git clone failed. Please verify the URL and your access credentials.".to_string());
+        let hint = match host {
+            GitHost::GitHub => "Please verify the URL and your access credentials. You can save a GitHub Personal Access Token in Settings for authenticated access.",
+            GitHost::Generic => "Please verify the URL is a valid Git clone URL (not a web browsing page) and your access credentials are configured (SSH key, credential helper, or .netrc).",
+        };
+        return Err(format!("git clone failed: {}. {}", safe_url, hint));
     }
 
     if !temp_dir.is_dir() {
@@ -643,7 +687,7 @@ pub async fn preview_git_repo_import(
             let (clean_url, url_branch) = extract_branch_from_url(&repo_url);
             let effective_branch = branch.as_deref().or(url_branch.as_deref());
 
-            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch)?;
+            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch, &host)?;
 
             let files = snapshot_from_local_dir(temp_dir.path())?;
             let repo_ref = build_repo_ref_from_url(&clean_url, effective_branch)?;
@@ -717,7 +761,7 @@ pub async fn import_git_repo_skills(
             let (clean_url, url_branch) = extract_branch_from_url(&repo_url);
             let effective_branch = branch.as_deref().or(url_branch.as_deref());
 
-            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch)?;
+            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch, &host)?;
 
             let files = snapshot_from_local_dir(temp_dir.path())?;
 
@@ -999,13 +1043,13 @@ pub async fn browse_git_skill_directory(
             // Otherwise, fall back to git clone approach
             let (clean_url, url_branch) = extract_branch_from_url(&repo_url);
             let effective_branch = branch.as_deref().or(url_branch.as_deref());
-            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch)?;
+            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch, &host)?;
             build_file_entries_from_dir(temp_dir.path(), &skill_path)
         }
         GitHost::Generic => {
             let (clean_url, url_branch) = extract_branch_from_url(&repo_url);
             let effective_branch = branch.as_deref().or(url_branch.as_deref());
-            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch)?;
+            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch, &host)?;
             build_file_entries_from_dir(temp_dir.path(), &skill_path)
         }
     }
@@ -1048,7 +1092,7 @@ pub async fn fetch_git_skill_markdown(
             // Fallback to git clone approach
             let (clean_url, url_branch) = extract_branch_from_url(&repo_url);
             let effective_branch = branch.as_deref().or(url_branch.as_deref());
-            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch)?;
+            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch, &host)?;
             let full_path = temp_dir.path().join(&file_path);
             std::fs::read_to_string(&full_path).map_err(|e| {
                 format!("Failed to read file '{}': {}", file_path, e)
@@ -1057,7 +1101,7 @@ pub async fn fetch_git_skill_markdown(
         GitHost::Generic => {
             let (clean_url, url_branch) = extract_branch_from_url(&repo_url);
             let effective_branch = branch.as_deref().or(url_branch.as_deref());
-            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch)?;
+            let temp_dir = clone_repo_to_temp(&clean_url, effective_branch, &host)?;
             let full_path = temp_dir.path().join(&file_path);
             std::fs::read_to_string(&full_path).map_err(|e| {
                 format!("Failed to read file '{}': {}", file_path, e)
@@ -1180,6 +1224,38 @@ mod tests {
         assert_eq!(
             build_source_field(&GitHost::Generic, &repo2),
             "git:https://gitlab.com/team/project"
+        );
+    }
+
+    #[test]
+    fn normalize_git_clone_url_converts_bitbucket_browse_urls() {
+        assert_eq!(
+            normalize_git_clone_url("https://git.rakuten-it.com/users/ts-chuanbo.song/repos/sdk-skills/browse/skills"),
+            "https://git.rakuten-it.com/users/ts-chuanbo.song/repos/sdk-skills.git"
+        );
+        assert_eq!(
+            normalize_git_clone_url("https://git.rakuten-it.com/projects/PROJ/repos/my-repo/browse"),
+            "https://git.rakuten-it.com/projects/PROJ/repos/my-repo.git"
+        );
+        assert_eq!(
+            normalize_git_clone_url("https://git.rakuten-it.com/projects/PROJ/repos/my-repo/browse/skills/agent-planner/SKILL.md"),
+            "https://git.rakuten-it.com/projects/PROJ/repos/my-repo.git"
+        );
+    }
+
+    #[test]
+    fn normalize_git_clone_url_preserves_normal_git_urls() {
+        assert_eq!(
+            normalize_git_clone_url("https://git.rakuten-it.com/users/ts-chuanbo.song/repos/sdk-skills.git"),
+            "https://git.rakuten-it.com/users/ts-chuanbo.song/repos/sdk-skills.git"
+        );
+        assert_eq!(
+            normalize_git_clone_url("https://github.com/owner/repo"),
+            "https://github.com/owner/repo"
+        );
+        assert_eq!(
+            normalize_git_clone_url("git@gitlab.com:owner/repo.git"),
+            "git@gitlab.com:owner/repo.git"
         );
     }
 

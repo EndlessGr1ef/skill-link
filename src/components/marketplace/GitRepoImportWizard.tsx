@@ -115,8 +115,16 @@ function normalizeMessage(message: string) {
   return message.replace(/^Error:\s*/, "");
 }
 
-function looksLikeGitAuthGuidance(message: string) {
-  return /github|rate limit|personal access token|pat|settings|authentication failed|credential|permission denied|ssh key/i.test(message);
+function looksLikeGitHubAuthGuidance(message: string) {
+  return /github|personal access token|pat|rate limit/i.test(message);
+}
+
+function looksLikeGenericGitAuthGuidance(message: string) {
+  return (
+    /ssh key|credential helper|\.netrc|authentication failed|permission denied|credential/i.test(
+      message,
+    ) && !looksLikeGitHubAuthGuidance(message)
+  );
 }
 
 function clampPercent(value: number) {
@@ -649,9 +657,13 @@ export function GitRepoImportWizard({
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
               <div className="space-y-2">
                 <span className="block">{normalizeMessage(previewError)}</span>
-                {looksLikeGitAuthGuidance(previewError) ? (
+                {looksLikeGitHubAuthGuidance(previewError) ? (
                   <span className="block text-xs text-destructive/90">
                     {t("marketplace.githubPatSettingsHint")}
+                  </span>
+                ) : looksLikeGenericGitAuthGuidance(previewError) ? (
+                  <span className="block text-xs text-destructive/90">
+                    {t("marketplace.genericGitAuthHint")}
                   </span>
                 ) : null}
               </div>
