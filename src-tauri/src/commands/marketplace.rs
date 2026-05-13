@@ -40,6 +40,7 @@ pub struct MarketplaceSkill {
     pub is_installed: bool,
     pub synced_at: String,
     pub cache_updated_at: Option<String>,
+    pub source_path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -148,6 +149,7 @@ fn marketplace_skills_from_candidates(
             is_installed: false,
             synced_at: now.clone(),
             cache_updated_at: Some(now.clone()),
+            source_path: Some(candidate.source_path.clone()),
         });
     }
 
@@ -418,15 +420,16 @@ async fn sync_registry_impl(
         let is_installed = central_dir.join(&skill.name).join("SKILL.md").exists();
 
         sqlx::query(
-            "INSERT INTO marketplace_skills (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            "INSERT INTO marketplace_skills (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at, source_path)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 description = excluded.description,
                 download_url = excluded.download_url,
                 is_installed = excluded.is_installed,
                 synced_at = excluded.synced_at,
-                cache_updated_at = excluded.cache_updated_at",
+                cache_updated_at = excluded.cache_updated_at,
+                source_path = excluded.source_path",
         )
         .bind(&skill.id)
         .bind(&skill.registry_id)
@@ -436,6 +439,7 @@ async fn sync_registry_impl(
         .bind(is_installed)
         .bind(&skill.synced_at)
         .bind(&skill.cache_updated_at)
+        .bind(&skill.source_path)
         .execute(pool)
         .await
         .map_err(|e| e.to_string())?;
@@ -477,7 +481,7 @@ async fn search_marketplace_skills_impl(
 ) -> Result<Vec<MarketplaceSkill>, String> {
     let mut sql = String::from(
         r#"SELECT id, registry_id, name, description, download_url,
-            is_installed, synced_at, cache_updated_at
+            is_installed, synced_at, cache_updated_at, source_path
          FROM marketplace_skills WHERE 1=1"#,
     );
     let mut bindings: Vec<String> = Vec::new();
@@ -532,6 +536,7 @@ fn row_to_marketplace_skill(row: &sqlx::sqlite::SqliteRow) -> MarketplaceSkill {
         is_installed: row.get::<i64, _>("is_installed") != 0,
         synced_at: row.get("synced_at"),
         cache_updated_at: row.get("cache_updated_at"),
+        source_path: row.get("source_path"),
     }
 }
 
@@ -545,6 +550,7 @@ struct MarketplaceSkillRow {
     download_url: String,
     is_installed: bool,
     synced_at: String,
+    source_path: Option<String>,
 }
 
 #[tauri::command]
@@ -554,7 +560,7 @@ pub async fn install_marketplace_skill(
 ) -> Result<(), String> {
     // Get skill info
     let skill = sqlx::query_as::<_, MarketplaceSkillRow>(
-        "SELECT id, registry_id, name, description, download_url, is_installed, synced_at
+        "SELECT id, registry_id, name, description, download_url, is_installed, synced_at, source_path
          FROM marketplace_skills WHERE id = ?",
     )
     .bind(&skill_id)
@@ -2423,8 +2429,8 @@ mod tests {
 
         sqlx::query(
             "INSERT INTO marketplace_skills
-             (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at)
-             VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+             (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at, source_path)
+             VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL)",
         )
         .bind(format!("{}::cached-skill", registry.id))
         .bind(&registry.id)
@@ -2479,8 +2485,8 @@ mod tests {
 
         sqlx::query(
             "INSERT INTO marketplace_skills
-             (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at)
-             VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+             (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at, source_path)
+             VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL)",
         )
         .bind(format!("{}::last-good", registry.id))
         .bind(&registry.id)
@@ -2630,8 +2636,8 @@ mod tests {
 
         sqlx::query(
             "INSERT INTO marketplace_skills
-             (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at)
-             VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
+             (id, registry_id, name, description, download_url, is_installed, synced_at, cache_updated_at, source_path)
+             VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL)",
         )
         .bind(format!("{}::cached", registry.id))
         .bind(&registry.id)

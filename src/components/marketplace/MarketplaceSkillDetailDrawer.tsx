@@ -36,6 +36,10 @@ export interface MarketplaceSkillDetail {
   sourceUrl?: string | null;
   installed?: boolean;
   files?: SkillsShFileEntry[];
+  /** Source type — 'git' means use fetch_git_skill_markdown instead of HTTP */
+  sourceType?: "github" | "http_json" | "git";
+  /** Repo-relative path to the skill directory (e.g. "." or "skills/my-skill") */
+  sourcePath?: string;
 }
 
 interface MarketplaceSkillDetailDrawerProps {
@@ -137,7 +141,7 @@ export function MarketplaceSkillDetailDrawer({
     setShowExplanation(false);
 
     let files = skill.files;
-    if ((!files || files.length === 0) && skill.downloadUrl) {
+    if ((!files || files.length === 0) && skill.downloadUrl && skill.sourceType !== "git") {
       try {
         const remoteDirectoryFiles = await browseRemoteSkillDirectory(skill.downloadUrl);
         files = remoteDirectoryFiles.length > 0 ? remoteDirectoryFiles : undefined;
@@ -161,6 +165,29 @@ export function MarketplaceSkillDetailDrawer({
       // No SKILL.md found; clear selection
       setSelectedFilePath(null);
       setViewMode("raw");
+      return;
+    }
+
+    // Git source: use fetch_git_skill_markdown via Tauri command
+    if (skill.sourceType === "git" && skill.sourceUrl) {
+      setSelectedFilePath(null);
+      setViewMode("markdown");
+      setIsLoadingContent(true);
+      try {
+        const filePath = skill.sourcePath
+          ? (skill.sourcePath === "." ? "SKILL.md" : `${skill.sourcePath}/SKILL.md`)
+          : "SKILL.md";
+        const markdown = await invoke<string>("fetch_git_skill_markdown", {
+          repoUrl: skill.sourceUrl,
+          branch: null,
+          filePath,
+        });
+        setContent(markdown);
+      } catch {
+        setContent("Failed to load SKILL.md content.");
+      } finally {
+        setIsLoadingContent(false);
+      }
       return;
     }
 

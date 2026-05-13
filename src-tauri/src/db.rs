@@ -500,6 +500,13 @@ pub async fn init_database(pool: &DbPool) -> Result<(), String> {
         "ALTER TABLE marketplace_skills ADD COLUMN cache_updated_at TEXT",
     )
     .await?;
+    ensure_column(
+        pool,
+        "marketplace_skills",
+        "source_path",
+        "ALTER TABLE marketplace_skills ADD COLUMN source_path TEXT",
+    )
+    .await?;
 
     // ── Migration: source tracking columns for skills table ──
     ensure_column(

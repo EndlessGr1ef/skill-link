@@ -280,6 +280,7 @@ export interface MarketplaceSkill {
   is_installed: boolean;
   synced_at: string;
   cache_updated_at?: string | null;
+  source_path?: string | null;
 }
 
 export interface SkillsShSkill {

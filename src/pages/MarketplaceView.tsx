@@ -218,6 +218,8 @@ function CustomMarketContent({
                     sourceLabel: registry.name,
                     sourceUrl: registry.url,
                     installed: skill.is_installed,
+                    sourceType: "git",
+                    sourcePath: skill.source_path ?? undefined,
                   },
                   event?.currentTarget ?? null
                 )
