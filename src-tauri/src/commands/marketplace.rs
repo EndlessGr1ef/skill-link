@@ -5,6 +5,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 
 use super::github_import;
+use super::git_import;
 use crate::path_utils::central_skills_dir;
 use crate::AppState;
 
@@ -96,6 +97,32 @@ async fn fetch_github_skills(
     let auth = github_import::github_direct_auth_from_settings(pool).await?;
     let repo = github_import::resolve_repo_ref(url, auth.as_deref()).await?;
     let candidates = github_import::fetch_repo_skill_candidates(&repo, auth.as_deref()).await?;
+    Ok(marketplace_skills_from_candidates(registry_id, candidates))
+}
+
+/// Fetch skills from a generic Git repository (non-GitHub).
+/// Uses `git clone --depth 1` + local directory scanning, reusing git_import infrastructure.
+async fn fetch_generic_git_skills(
+    _pool: &crate::db::DbPool,
+    url: &str,
+    registry_id: &str,
+    branch: Option<&str>,
+) -> Result<Vec<MarketplaceSkill>, String> {
+    let host = git_import::detect_git_host(url);
+    let (clean_url, url_branch) = git_import::extract_branch_from_url(url);
+    let effective_branch = branch.or(url_branch.as_deref());
+
+    let temp_dir = git_import::clone_repo_to_temp(&clean_url, effective_branch, &host)?;
+    let files = git_import::snapshot_from_local_dir(temp_dir.path())?;
+    let candidates = git_import::build_candidates_from_local_snapshot(&clean_url, &files)?;
+
+    if candidates.is_empty() {
+        return Err(
+            "No importable skills found in this repository. Supported layouts are repo-root skill directories or a top-level skills/ directory."
+                .to_string(),
+        );
+    }
+
     Ok(marketplace_skills_from_candidates(registry_id, candidates))
 }
 
@@ -357,6 +384,29 @@ async fn sync_registry_impl(
                 return Err(error);
             }
         },
+        "git" => match fetch_generic_git_skills(pool, &registry.url, &registry.id, None).await {
+            Ok(skills) => skills,
+            Err(error) => {
+                sqlx::query(
+                    "UPDATE skill_registries
+                     SET last_attempted_sync = ?, last_sync_status = ?, last_sync_error = ?
+                     WHERE id = ?",
+                )
+                .bind(&attempt_time)
+                .bind(RegistrySyncStatus::Error.as_str())
+                .bind(&error)
+                .bind(&registry.id)
+                .execute(pool)
+                .await
+                .map_err(|e| e.to_string())?;
+
+                if registry_has_cached_skills(pool, &registry.id).await? {
+                    return search_marketplace_skills_impl(pool, Some(registry_id), None).await;
+                }
+
+                return Err(error);
+            }
+        },
         _ => return Err(format!("Unsupported source type: {}", registry.source_type)),
     };
 
@@ -486,9 +536,15 @@ fn row_to_marketplace_skill(row: &sqlx::sqlite::SqliteRow) -> MarketplaceSkill {
 }
 
 #[derive(sqlx::FromRow)]
+#[allow(dead_code)]
 struct MarketplaceSkillRow {
+    id: String,
+    registry_id: String,
     name: String,
+    description: Option<String>,
     download_url: String,
+    is_installed: bool,
+    synced_at: String,
 }
 
 #[tauri::command]
@@ -507,7 +563,106 @@ pub async fn install_marketplace_skill(
     .map_err(|e| e.to_string())?
     .ok_or_else(|| "Skill not found".to_string())?;
 
-    // Download SKILL.md content
+    // Determine registry source_type to choose install path
+    let registry_source_type: String = sqlx::query_scalar(
+        "SELECT source_type FROM skill_registries WHERE id = ?",
+    )
+    .bind(&skill.registry_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| e.to_string())?
+    .unwrap_or_else(|| "github".to_string());
+
+    match registry_source_type.as_str() {
+        "git" => {
+            // For git sources: clone the repo and write the full skill directory
+            install_marketplace_skill_from_git(&state.db, &skill).await?;
+        }
+        _ => {
+            // For github/http_json sources: download SKILL.md via HTTP
+            install_marketplace_skill_via_http(&skill).await?;
+        }
+    }
+
+    // Mark as installed in DB
+    sqlx::query("UPDATE marketplace_skills SET is_installed = 1 WHERE id = ?")
+        .bind(&skill_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Install a marketplace skill from a git source by cloning and writing the full directory.
+async fn install_marketplace_skill_from_git(
+    pool: &crate::db::DbPool,
+    skill: &MarketplaceSkillRow,
+) -> Result<(), String> {
+    // Get the registry URL
+    let registry_url: String = sqlx::query_scalar(
+        "SELECT url FROM skill_registries WHERE id = ?",
+    )
+    .bind(&skill.registry_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let host = git_import::detect_git_host(&registry_url);
+    let (clean_url, url_branch) = git_import::extract_branch_from_url(&registry_url);
+    let temp_dir = git_import::clone_repo_to_temp(&clean_url, url_branch.as_deref(), &host)?;
+    let files = git_import::snapshot_from_local_dir(temp_dir.path())?;
+
+    // Determine the source_path for this skill from its download_url
+    // For git sources, download_url is the repo URL itself; we need to find the skill's directory
+    let candidates = git_import::build_candidates_from_local_snapshot(&clean_url, &files)?;
+    let candidate = candidates
+        .iter()
+        .find(|c| c.skill_name == skill.name || skill.download_url.contains(&c.skill_id))
+        .ok_or_else(|| format!("Skill '{}' not found in repository snapshot", skill.name))?;
+
+    let source_files = git_import::collect_local_source_files(&files, &candidate.source_path)?;
+    let central_root = super::github_import::central_skills_root(pool).await?;
+    let target_dir = central_root.join(&skill.name);
+
+    if target_dir.exists() {
+        std::fs::remove_dir_all(&target_dir)
+            .map_err(|e| format!("Failed to remove existing skill directory: {}", e))?;
+    }
+
+    git_import::write_local_source_to_target(&files, &source_files, &target_dir)?;
+
+    // Upsert into skills table for central tracking
+    let skill_md_path = target_dir.join("SKILL.md");
+    let raw = std::fs::read_to_string(&skill_md_path)
+        .map_err(|e| format!("Failed to read imported SKILL.md: {}", e))?;
+    let frontmatter = super::github_import::parse_frontmatter(&raw)
+        .ok_or_else(|| "Imported skill is missing valid frontmatter.".to_string())?;
+
+    let repo_ref = git_import::build_repo_ref_from_url(&clean_url, url_branch.as_deref())?;
+    let source = git_import::build_source_field(&host, &repo_ref);
+
+    let db_skill = crate::db::Skill {
+        id: skill.name.clone(),
+        name: frontmatter.name.clone(),
+        description: frontmatter.description.clone(),
+        file_path: skill_md_path.to_string_lossy().into_owned(),
+        canonical_path: Some(target_dir.to_string_lossy().into_owned()),
+        is_central: true,
+        source: Some(source),
+        content: None,
+        scanned_at: chrono::Utc::now().to_rfc3339(),
+        source_ref: None,
+        source_path: Some(candidate.source_path.clone()),
+        source_branch: Some(repo_ref.branch.clone()),
+    };
+    crate::db::upsert_skill(pool, &db_skill).await?;
+
+    Ok(())
+}
+
+/// Install a marketplace skill via HTTP download (github/http_json sources).
+async fn install_marketplace_skill_via_http(skill: &MarketplaceSkillRow) -> Result<(), String> {
     let client = reqwest::Client::builder()
         .user_agent("skill-link/0.9.1")
         .build()
@@ -536,13 +691,6 @@ pub async fn install_marketplace_skill(
     let skill_md_path = skill_dir.join("SKILL.md");
     std::fs::write(&skill_md_path, &content)
         .map_err(|e| format!("Failed to write SKILL.md: {}", e))?;
-
-    // Mark as installed in DB
-    sqlx::query("UPDATE marketplace_skills SET is_installed = 1 WHERE id = ?")
-        .bind(&skill_id)
-        .execute(&state.db)
-        .await
-        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

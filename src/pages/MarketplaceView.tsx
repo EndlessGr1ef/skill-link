@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
-  Store,
   RefreshCw,
   Loader2,
   Download,
-  ChevronLeft,
-  Folder,
   FileText,
+  Plus,
+  X,
+  GitBranch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -21,61 +21,219 @@ import { usePlatformStore } from "@/stores/platformStore";
 import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { useSkillStore } from "@/stores/skillStore";
 import {
-  OFFICIAL_PUBLISHERS,
   RECOMMENDED_SKILLS,
   ALL_TAGS,
   TAG_LABELS,
-  OfficialPublisher,
   SkillTag,
 } from "@/data/officialSources";
 import { MarketplaceSkillDetailDrawer, type MarketplaceSkillDetail } from "@/components/marketplace/MarketplaceSkillDetailDrawer";
 import { GitRepoImportWizard } from "@/components/marketplace/GitRepoImportWizard";
-import { invoke, isTauriRuntime } from "@/lib/tauri";
-import { fetchRemoteText, installRemoteSkillDirectory } from "@/lib/remoteContent";
+import { invoke } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
-import type { GitHubRepoPreview, SkillsShFileEntry, SkillsShSkill } from "@/types";
+import type { MarketplaceSkill, SkillRegistry, SkillsShFileEntry, SkillsShSkill } from "@/types";
 
-type TabId = "recommended" | "official" | "skillssh";
+// Tab ID: built-in tabs + dynamic custom registry IDs
+type TabId = "recommended" | "skillfind" | `custom:${string}`;
 
-type PreviewStatus =
-  | { kind: "idle" }
-  | { kind: "browser-fallback"; title: string; detail: string }
-  | { kind: "error"; title: string; detail: string };
+// ─── Add Custom Market Dialog ─────────────────────────────────────────────
 
-type PreviewSkill = {
-  id: string;
-  name: string;
-  description?: string;
-  downloadUrl: string;
-};
-
-// ─── Publisher Card ──────────────────────────────────────────────────────────
-
-function PublisherCard({
-  publisher,
-  onClick,
+function AddCustomMarketDialog({
+  open,
+  onOpenChange,
+  onAdd,
 }: {
-  publisher: OfficialPublisher;
-  onClick: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (name: string, url: string) => Promise<void>;
 }) {
+  const { t } = useTranslation();
+  const lang = i18n.language;
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function deriveNameFromUrl(inputUrl: string): string {
+    try {
+      const parsed = new URL(inputUrl.startsWith("http") ? inputUrl : `https://${inputUrl}`);
+      const parts = parsed.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+      if (parts.length >= 2) return parts[parts.length - 1];
+      return parsed.hostname;
+    } catch {
+      return inputUrl;
+    }
+  }
+
+  async function handleAdd() {
+    if (!url.trim()) return;
+    const finalName = name.trim() || deriveNameFromUrl(url.trim());
+    setIsAdding(true);
+    setError(null);
+    try {
+      await onAdd(finalName, url.trim());
+      setName("");
+      setUrl("");
+      onOpenChange(false);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setIsAdding(false);
+    }
+  }
+
+  if (!open) return null;
+
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-3 w-full p-3 rounded-md border border-border hover:border-primary/40 hover:bg-hover-bg/10 transition-colors cursor-pointer text-left"
-    >
-      <div className="p-2 rounded-md bg-muted/60 shrink-0">
-        <Store className="size-4 text-muted-foreground" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => onOpenChange(false)}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-lg w-full max-w-md p-6 space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold">
+          {lang === "zh" ? "添加自定义市场" : "Add Custom Market"}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {lang === "zh"
+            ? "输入 Git 仓库地址，将其作为独立的技能市场 Tab 添加。"
+            : "Enter a Git repo URL to add it as an independent skill market tab."}
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-medium">
+              {lang === "zh" ? "仓库 URL" : "Repository URL"}
+            </label>
+            <Input
+              placeholder="https://github.com/user/skills-repo"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                if (!name.trim()) {
+                  setName(deriveNameFromUrl(e.target.value));
+                }
+              }}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">
+              {lang === "zh" ? "显示名称" : "Display Name"}
+            </label>
+            <Input
+              placeholder={lang === "zh" ? "自动从 URL 推导" : "Auto-derived from URL"}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        </div>
+        {error && (
+          <div className="text-sm text-destructive">{error}</div>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button onClick={handleAdd} disabled={!url.trim() || isAdding}>
+            {isAdding ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Plus className="size-4" />
+            )}
+            <span>{lang === "zh" ? "添加" : "Add"}</span>
+          </Button>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium truncate">{publisher.name}</div>
-        <div className="text-xs text-muted-foreground">{publisher.totalSkills} skills · {publisher.repos.length} repo{publisher.repos.length > 1 ? "s" : ""}</div>
-      </div>
-      <ChevronLeft className="size-4 text-muted-foreground rotate-180 shrink-0" />
-    </button>
+    </div>
   );
 }
 
-// ─── MarketplaceView ─────────────────────────────────────────────────────────
+// ─── Custom Market Tab Content ────────────────────────────────────────────
+
+function CustomMarketContent({
+  registry,
+  skills,
+  isSyncing,
+  onSync,
+  onInstall,
+  installingIds,
+  onOpenDetail,
+}: {
+  registry: SkillRegistry;
+  skills: MarketplaceSkill[];
+  isSyncing: boolean;
+  onSync: () => void;
+  onInstall: (skillId: string) => Promise<void>;
+  installingIds: Set<string>;
+  onOpenDetail: (skill: MarketplaceSkillDetail, trigger?: EventTarget | null) => void;
+}) {
+  const lang = i18n.language;
+
+  if (skills.length === 0 && !isSyncing) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground gap-3">
+        <GitBranch className="size-8 text-muted-foreground/50" />
+        <div>
+          {lang === "zh" ? "该市场暂无缓存技能" : "No cached skills for this market"}
+        </div>
+        <Button variant="outline" size="sm" onClick={onSync} disabled={isSyncing}>
+          {isSyncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+          <span>{lang === "zh" ? "同步" : "Sync"}</span>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground truncate max-w-[70%]">
+          {registry.url}
+        </span>
+        <Button variant="ghost" size="sm" onClick={onSync} disabled={isSyncing}>
+          {isSyncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+          <span>{lang === "zh" ? "同步" : "Sync"}</span>
+        </Button>
+      </div>
+      {isSyncing && skills.length === 0 ? (
+        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-sm">
+          <Loader2 className="size-4 animate-spin" />
+          {lang === "zh" ? "正在同步..." : "Syncing..."}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {skills.map((skill) => (
+            <UnifiedSkillCard
+              key={skill.id}
+              name={skill.name}
+              description={skill.description ?? undefined}
+              publisher={registry.name}
+              onDetail={(event) =>
+                onOpenDetail(
+                  {
+                    id: skill.id,
+                    name: skill.name,
+                    description: skill.description ?? undefined,
+                    downloadUrl: skill.download_url,
+                    publisher: registry.name,
+                    sourceLabel: registry.name,
+                    sourceUrl: registry.url,
+                    installed: skill.is_installed,
+                  },
+                  event?.currentTarget ?? null
+                )
+              }
+              onInstall={installingIds.has(skill.id) ? undefined : () => onInstall(skill.id)}
+              isLoading={installingIds.has(skill.id)}
+              isInstalled={skill.is_installed}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── MarketplaceView ─────────────────────────────────────────────────────
 
 export function MarketplaceView() {
   const { t } = useTranslation();
@@ -85,9 +243,7 @@ export function MarketplaceView() {
   const registries = useMarketplaceStore((s) => s.registries);
   const installingIds = useMarketplaceStore((s) => s.installingIds);
   const loadRegistries = useMarketplaceStore((s) => s.loadRegistries);
-  const loadPreviewSkills = useMarketplaceStore((s) => s.loadPreviewSkills);
   const installSkill = useMarketplaceStore((s) => s.installSkill);
-  const getNormalizedRegistryIdentity = useMarketplaceStore((s) => s.getNormalizedRegistryIdentity);
   const githubImport = useMarketplaceStore((s) => s.githubImport);
   const previewGitHubRepoImport = useMarketplaceStore((s) => s.previewGitHubRepoImport);
   const importGitHubRepoSkills = useMarketplaceStore((s) => s.importGitHubRepoSkills);
@@ -97,6 +253,13 @@ export function MarketplaceView() {
   const isSkillsShLoading = useMarketplaceStore((s) => s.isSkillsShLoading);
   const searchSkillsSh = useMarketplaceStore((s) => s.searchSkillsSh);
   const installFromSkillsSh = useMarketplaceStore((s) => s.installFromSkillsSh);
+  // Custom market
+  const customSkillsByRegistry = useMarketplaceStore((s) => s.customSkillsByRegistry);
+  const isCustomSyncing = useMarketplaceStore((s) => s.isCustomSyncing);
+  const syncCustomRegistry = useMarketplaceStore((s) => s.syncCustomRegistry);
+  const loadCustomSkills = useMarketplaceStore((s) => s.loadCustomSkills);
+  const removeCustomRegistry = useMarketplaceStore((s) => s.removeCustomRegistry);
+  const addRegistry = useMarketplaceStore((s) => s.addRegistry);
 
   const rescan = usePlatformStore((s) => s.rescan);
   const platformAgents = usePlatformStore((s) => s.agents);
@@ -111,26 +274,33 @@ export function MarketplaceView() {
   const [activeTab, setActiveTab] = useState<TabId>("recommended");
   const [selectedTag, setSelectedTag] = useState<SkillTag | null>(null);
   const [recommendedSearch, setRecommendedSearch] = useState("");
-  const [selectedPublisher, setSelectedPublisher] = useState<OfficialPublisher | null>(null);
-  const [publisherSearch, setPublisherSearch] = useState("");
   const [skillsShSearch, setSkillsShSearch] = useState("");
-
-  // Preview state — inline skills preview in Official Directory
-  const [previewRepo, setPreviewRepo] = useState<string | null>(null); // repo fullName
-  const [previewSkills, setPreviewSkills] = useState<PreviewSkill[]>([]);
-  const [previewCache, setPreviewCache] = useState<Record<string, PreviewSkill[]>>({});
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [previewInstallingIds, setPreviewInstallingIds] = useState<Set<string>>(new Set());
   const [detailSkill, setDetailSkill] = useState<MarketplaceSkillDetail | null>(null);
-  const [previewStatus, setPreviewStatus] = useState<PreviewStatus>({ kind: "idle" });
   const [isGitHubImportOpen, setIsGitHubImportOpen] = useState(false);
   const [githubRepoUrl, setGitHubRepoUrl] = useState("");
   const [resolvingSkillsShUrls, setResolvingSkillsShUrls] = useState<Set<string>>(new Set());
+  const [isAddCustomMarketOpen, setIsAddCustomMarketOpen] = useState(false);
+  const [hoveredCustomTab, setHoveredCustomTab] = useState<string | null>(null);
   const detailTriggerRef = useRef<HTMLElement | null>(null);
+
+  // Custom registries (git source_type)
+  const customRegistries = useMemo(
+    () => registries.filter((r) => r.source_type === "git"),
+    [registries]
+  );
 
   useEffect(() => {
     loadRegistries();
   }, [loadRegistries]);
+
+  // Load cached skills for custom registries on first load
+  useEffect(() => {
+    for (const reg of customRegistries) {
+      if (!customSkillsByRegistry[reg.id]) {
+        loadCustomSkills(reg.id);
+      }
+    }
+  }, [customRegistries, customSkillsByRegistry, loadCustomSkills]);
 
   // Recommended skills filtered by tag and search
   const filteredRecommended = useMemo(() => {
@@ -147,15 +317,7 @@ export function MarketplaceView() {
     return list;
   }, [selectedTag, recommendedSearch]);
 
-  // Publishers filtered by search
-  const filteredPublishers = useMemo(() => {
-    if (!publisherSearch.trim()) return OFFICIAL_PUBLISHERS;
-    const q = publisherSearch.toLowerCase();
-    return OFFICIAL_PUBLISHERS.filter((p) => p.name.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q));
-  }, [publisherSearch]);
-
   // ── Handlers ───────────────────────────────────────────────────────────
-
 
   async function handleInstallFromSource(skillId: string) {
     try {
@@ -185,139 +347,12 @@ export function MarketplaceView() {
     }
   }
 
-
-  async function handlePreviewRepo(
-    repoFullName: string,
-    repoUrl: string,
-    options?: { forceRefresh?: boolean }
-  ) {
-    const forceRefresh = options?.forceRefresh ?? false;
-
-    if (previewRepo === repoFullName && !forceRefresh) {
-      setPreviewRepo(null); // toggle off
-      setPreviewStatus({ kind: "idle" });
-      return;
-    }
-
-    if (!forceRefresh && Object.prototype.hasOwnProperty.call(previewCache, repoUrl)) {
-      setPreviewRepo(repoFullName);
-      setPreviewSkills(previewCache[repoUrl] ?? []);
-      setPreviewStatus({ kind: "idle" });
-      setIsPreviewLoading(false);
-      return;
-    }
-
-    setPreviewRepo(repoFullName);
-    setPreviewSkills([]);
-    setPreviewStatus({ kind: "idle" });
-    setIsPreviewLoading(true);
-    try {
-      if (!isTauriRuntime()) {
-        setPreviewStatus({
-          kind: "browser-fallback",
-          title:
-            lang === "zh"
-              ? "浏览器模式下暂不支持预览"
-              : "Preview unavailable in browser mode",
-          detail:
-            lang === "zh"
-              ? "请在桌面应用中打开此流程，以浏览并安装仓库里的技能。"
-              : "Open this flow in the desktop app to browse and install repository skills.",
-        });
-        return;
-      }
-
-      const normalizedRepoIdentity = getNormalizedRegistryIdentity(repoUrl);
-      const registryId = normalizedRepoIdentity
-        ? registries.find((registry) => {
-            const registryIdentity =
-              registry.normalized_url ?? getNormalizedRegistryIdentity(registry.url);
-            return registryIdentity === normalizedRepoIdentity;
-          })?.id
-        : null;
-
-      if (registryId) {
-        const skills = await loadPreviewSkills(registryId);
-        if (skills.length > 0) {
-          const nextPreviewSkills = skills.map((skill) => ({
-            id: skill.id,
-            name: skill.name,
-            description: skill.description ?? undefined,
-            downloadUrl: skill.download_url,
-          }));
-          setPreviewSkills(nextPreviewSkills);
-          setPreviewCache((current) => ({ ...current, [repoUrl]: nextPreviewSkills }));
-          return;
-        }
-      }
-
-      const preview = await invoke<GitHubRepoPreview>("preview_git_repo_import", {
-        repoUrl,
-        branch: null,
-      });
-      const nextPreviewSkills = preview.skills.map((skill) => ({
-        id: skill.skillId,
-        name: skill.skillName,
-        description: skill.description ?? undefined,
-        downloadUrl: skill.downloadUrl,
-      }));
-      setPreviewSkills(nextPreviewSkills);
-      setPreviewCache((current) => ({ ...current, [repoUrl]: nextPreviewSkills }));
-    } catch (err) {
-      setPreviewStatus({
-        kind: "error",
-        title: lang === "zh" ? "预览加载失败" : "Failed to load preview",
-        detail: String(err),
-      });
-      toast.error(String(err));
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  }
-
-  async function handleInstallPreviewSkill(skill: PreviewSkill) {
-    setPreviewInstallingIds((prev) => new Set(prev).add(skill.name));
-    try {
-      const installedSkillName = await installRemoteSkillDirectory(skill.downloadUrl);
-      if (installedSkillName) {
-        await Promise.all([rescan(), loadCentralSkills()]);
-        setDetailSkill((current) =>
-          current && current.downloadUrl === skill.downloadUrl ? { ...current, installed: true } : current
-        );
-        toast.success(t("marketplace.installSuccess"));
-        return;
-      }
-
-      const content = await fetchRemoteText(skill.downloadUrl);
-
-      // Write via the Tauri FS plugin
-      const { writeTextFile, mkdir, BaseDirectory } = await import("@tauri-apps/plugin-fs");
-      const skillDir = `.agents/skills/${skill.name}`;
-      await mkdir(skillDir, { baseDir: BaseDirectory.Home, recursive: true });
-      await writeTextFile(`${skillDir}/SKILL.md`, content, { baseDir: BaseDirectory.Home });
-
-      await rescan();
-      await loadCentralSkills();
-      toast.success(t("marketplace.installSuccess"));
-    } catch (err) {
-      toast.error(String(err));
-    } finally {
-      setPreviewInstallingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(skill.name);
-        return next;
-      });
-    }
-  }
-
   function openDetailSkill(skill: MarketplaceSkillDetail, trigger?: EventTarget | null) {
     if (trigger instanceof HTMLElement) {
       detailTriggerRef.current = trigger;
     }
     setDetailSkill(skill);
   }
-
-
 
   async function handleGitHubPreview() {
     try {
@@ -369,13 +404,64 @@ export function MarketplaceView() {
     await Promise.all(agentIds.map((agentId) => getSkillsByAgent(agentId)));
   }
 
+  async function handleAddCustomMarket(name: string, url: string) {
+    const registry = await addRegistry(name, "git", url);
+    // Sync immediately to fetch skills
+    await syncCustomRegistry(registry.id);
+    // Switch to the new tab
+    setActiveTab(`custom:${registry.id}`);
+  }
+
+  async function handleDeleteCustomMarket(registryId: string) {
+    try {
+      await removeCustomRegistry(registryId);
+      if (activeTab === `custom:${registryId}`) {
+        setActiveTab("recommended");
+      }
+    } catch (err) {
+      toast.error(String(err));
+    }
+  }
+
+  async function handleInstallCustomSkill(registryId: string, skillId: string) {
+    try {
+      await installSkill(skillId);
+      await rescan();
+      setDetailSkill((current) =>
+        current && current.id === skillId ? { ...current, installed: true } : current
+      );
+      // Mark as installed in local cache
+      useMarketplaceStore.setState((s) => {
+        const skills = s.customSkillsByRegistry[registryId] ?? [];
+        return {
+          customSkillsByRegistry: {
+            ...s.customSkillsByRegistry,
+            [registryId]: skills.map((sk) =>
+              sk.id === skillId ? { ...sk, is_installed: true } : sk
+            ),
+          },
+        };
+      });
+      toast.success(t("marketplace.installSuccess"));
+    } catch (err) {
+      toast.error(String(err));
+    }
+  }
+
   // ── Tabs ───────────────────────────────────────────────────────────────
 
-  const tabs: { id: TabId; label: string }[] = [
+  const builtinTabs: { id: TabId; label: string }[] = [
     { id: "recommended", label: lang === "zh" ? "推荐" : "Recommended" },
-    { id: "official", label: lang === "zh" ? "官方源目录" : "Official Directory" },
-    { id: "skillssh", label: "skills.sh" },
+    { id: "skillfind", label: "Skill Find" },
   ];
+
+  const customTabs: { id: TabId; label: string; registryId: string }[] = customRegistries.map(
+    (reg) => ({
+      id: `custom:${reg.id}` as TabId,
+      label: reg.name,
+      registryId: reg.id,
+    })
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -386,19 +472,25 @@ export function MarketplaceView() {
             <h1 className="text-xl font-semibold">{t("marketplace.title")}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{t("marketplace.desc")}</p>
           </div>
-          <Button onClick={() => setIsGitHubImportOpen(true)}>
-            <Download className="size-4" />
-            <span>{t("marketplace.githubImportCta")}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setIsAddCustomMarketOpen(true)}>
+              <Plus className="size-4" />
+              <span>{lang === "zh" ? "添加自定义市场" : "Add Custom Market"}</span>
+            </Button>
+            <Button onClick={() => setIsGitHubImportOpen(true)}>
+              <Download className="size-4" />
+              <span>{t("marketplace.githubImportCta")}</span>
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 px-6 py-3 border-b border-border">
-        {tabs.map((tab) => (
+        {builtinTabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setSelectedPublisher(null); }}
+            onClick={() => setActiveTab(tab.id)}
             className={cn(
               "px-4 py-1.5 rounded-md text-sm transition-colors cursor-pointer",
               activeTab === tab.id
@@ -409,6 +501,43 @@ export function MarketplaceView() {
             {tab.label}
           </button>
         ))}
+        {customTabs.length > 0 && (
+          <>
+            <div className="w-px h-5 bg-border mx-1" />
+            {customTabs.map((tab) => (
+              <div
+                key={tab.id}
+                className="relative group"
+                onMouseEnter={() => setHoveredCustomTab(tab.registryId)}
+                onMouseLeave={() => setHoveredCustomTab(null)}
+              >
+                <button
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-md text-sm transition-colors cursor-pointer pr-7",
+                    activeTab === tab.id
+                      ? "bg-primary/15 text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-muted/40"
+                  )}
+                >
+                  {tab.label}
+                </button>
+                {hoveredCustomTab === tab.registryId && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCustomMarket(tab.registryId);
+                    }}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                    aria-label={lang === "zh" ? "删除市场" : "Remove market"}
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Tab Content */}
@@ -460,226 +589,40 @@ export function MarketplaceView() {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                {filteredRecommended.map((skill) => {
-                  return (
-                    <UnifiedSkillCard
-                      key={skill.name}
-                      name={skill.name}
-                      description={skill.description}
-                      publisher={skill.publisher}
-                      tags={skill.tags.slice(0, 2).map((tag) => ({
-                        key: tag,
-                        label: lang === "zh" ? TAG_LABELS[tag].zh : TAG_LABELS[tag].en,
-                      }))}
-                      onDetail={(event) =>
-                        openDetailSkill(
-                          {
-                            id: skill.name,
-                            name: skill.name,
-                            description: skill.description,
-                            downloadUrl: skill.downloadUrl,
-                            publisher: skill.publisher,
-                            sourceLabel: skill.publisher,
-                            sourceUrl: `https://github.com/${skill.repoFullName}`,
-                            installed: false,
-                          },
-                          event?.currentTarget ?? null
-                        )
-                      }
-                    />
-                  );
-                })}
+                {filteredRecommended.map((skill) => (
+                  <UnifiedSkillCard
+                    key={skill.name}
+                    name={skill.name}
+                    description={skill.description}
+                    publisher={skill.publisher}
+                    tags={skill.tags.slice(0, 2).map((tag) => ({
+                      key: tag,
+                      label: lang === "zh" ? TAG_LABELS[tag].zh : TAG_LABELS[tag].en,
+                    }))}
+                    onDetail={(event) =>
+                      openDetailSkill(
+                        {
+                          id: skill.name,
+                          name: skill.name,
+                          description: skill.description,
+                          downloadUrl: skill.downloadUrl,
+                          publisher: skill.publisher,
+                          sourceLabel: skill.publisher,
+                          sourceUrl: `https://github.com/${skill.repoFullName}`,
+                          installed: false,
+                        },
+                        event?.currentTarget ?? null
+                      )
+                    }
+                  />
+                ))}
               </div>
             )}
           </div>
         )}
 
-        {/* ── Tab: Official Directory ───────────────────────────────────── */}
-        {activeTab === "official" && !selectedPublisher && (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder={lang === "zh" ? "搜索发布者..." : "Search publishers..."}
-                  value={publisherSearch}
-                  onChange={(e) => setPublisherSearch(e.target.value)}
-                  className="pl-8 h-8 text-sm bg-muted/40"
-                />
-              </div>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {OFFICIAL_PUBLISHERS.length} {lang === "zh" ? "个官方发布者" : "publishers"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              {filteredPublishers.map((pub) => (
-                <PublisherCard
-                  key={pub.slug}
-                  publisher={pub}
-                  onClick={() => setSelectedPublisher(pub)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Tab: Official Directory → Publisher Detail ────────────────── */}
-        {activeTab === "official" && selectedPublisher && (
-          <div className="p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSelectedPublisher(null)}
-                className="p-1.5 rounded-md hover:bg-muted/60 transition-colors cursor-pointer text-muted-foreground"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <div>
-                <h2 className="text-sm font-semibold">{selectedPublisher.name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {selectedPublisher.totalSkills} skills · {selectedPublisher.repos.length} repo{selectedPublisher.repos.length > 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {selectedPublisher.repos.map((repo) => {
-                const isPreviewing = previewRepo === repo.fullName;
-                return (
-                  <div key={repo.fullName} className="rounded-md border border-border overflow-hidden">
-                    {/* Repo header — clickable to toggle preview */}
-                    <button
-                      onClick={() => handlePreviewRepo(repo.fullName, repo.url)}
-                      className={cn(
-                        "flex items-center gap-3 w-full p-4 transition-colors cursor-pointer text-left",
-                        isPreviewing ? "bg-primary/10" : "hover:bg-hover-bg/10"
-                      )}
-                    >
-                      <Folder className={cn("size-4 shrink-0", isPreviewing ? "text-primary" : "text-muted-foreground")} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate">{repo.fullName}</span>
-                          <a
-                            href={repo.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-[10px] text-primary hover:underline shrink-0"
-                          >{repo.url}</a>
-                        </div>
-                        <div className="text-xs text-muted-foreground">{repo.skillCount} skills</div>
-                      </div>
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {isPreviewing ? "▾" : "▸"} {lang === "zh" ? "浏览 Skills" : "Browse Skills"}
-                      </span>
-                    </button>
-
-                    {/* Expanded preview — inline skills list */}
-                    {isPreviewing && (
-                      <div className="border-t border-border bg-muted/10">
-                        {/* Actions bar */}
-                        <div className="flex items-center gap-2 px-4 py-2 border-b border-border/50">
-                          <span className="text-xs text-muted-foreground flex-1">
-                            {isPreviewLoading
-                              ? (lang === "zh" ? "正在获取..." : "Fetching...")
-                              : `${previewSkills.length} skills`}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handlePreviewRepo(repo.fullName, repo.url, { forceRefresh: true });
-                            }}
-                            disabled={isPreviewLoading}
-                            aria-label={lang === "zh" ? "刷新预览" : "Refresh preview"}
-                            className="h-6 text-xs px-2"
-                          >
-                            <RefreshCw className={cn("size-3", isPreviewLoading && "animate-spin")} />
-                          </Button>
-                        </div>
-
-                        {/* Skills */}
-                        {isPreviewLoading ? (
-                          <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground text-sm">
-                            <Loader2 className="size-4 animate-spin" />
-                            <span>{lang === "zh" ? "正在从 GitHub 获取 Skills..." : "Fetching skills from GitHub..."}</span>
-                          </div>
-                        ) : previewStatus.kind === "browser-fallback" || previewStatus.kind === "error" ? (
-                          <div className="px-4 py-6 text-center">
-                            <div className="text-sm font-medium text-foreground">{previewStatus.title}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">{previewStatus.detail}</div>
-                          </div>
-                        ) : previewSkills.length === 0 ? (
-                          <div className="text-center py-6 text-xs text-muted-foreground">
-                            {lang === "zh" ? "未找到 Skills" : "No skills found"}
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-2 p-3 max-h-80 overflow-y-auto">
-                            {previewSkills.map((skill) => (
-                              <div
-                                key={skill.name}
-                                className="flex items-start gap-2 p-2.5 rounded-md border border-border/50 bg-background"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-xs font-medium truncate">{skill.name}</div>
-                                  {skill.description && (
-                                    <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{skill.description}</div>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openDetailSkill(
-                                        {
-                                          id: skill.id,
-                                          name: skill.name,
-                                          description: skill.description,
-                                          downloadUrl: skill.downloadUrl,
-                                          publisher: repo.fullName,
-                                          sourceLabel: selectedPublisher.name,
-                                          sourceUrl: repo.url,
-                                          installed: false,
-                                        },
-                                        e.currentTarget
-                                      );
-                                    }}
-                                    className="h-6 text-[10px] px-2"
-                                  >
-                                    <FileText className="size-3" />
-                                    <span>{t("common.detail")}</span>
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={(e) => { e.stopPropagation(); handleInstallPreviewSkill(skill); }}
-                                    disabled={previewInstallingIds.has(skill.name)}
-                                    className="h-6 text-[10px] px-2"
-                                  >
-                                    {previewInstallingIds.has(skill.name)
-                                      ? <Loader2 className="size-3 animate-spin" />
-                                      : <Download className="size-3" />}
-                                    <span>{t("marketplace.install")}</span>
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── Tab: skills.sh ────────────────────────────────────────────── */}
-        {activeTab === "skillssh" && (
+        {/* ── Tab: Skill Find (skills.sh) ──────────────────────────────── */}
+        {activeTab === "skillfind" && (
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -816,6 +759,26 @@ export function MarketplaceView() {
           </div>
         )}
 
+        {/* ── Tab: Custom Markets (dynamic) ────────────────────────────── */}
+        {customTabs.map((tab) => {
+          if (activeTab !== tab.id) return null;
+          const registry = customRegistries.find((r) => r.id === tab.registryId);
+          if (!registry) return null;
+          const skills = customSkillsByRegistry[tab.registryId] ?? [];
+          return (
+            <CustomMarketContent
+              key={tab.registryId}
+              registry={registry}
+              skills={skills}
+              isSyncing={isCustomSyncing.has(tab.registryId)}
+              onSync={() => syncCustomRegistry(tab.registryId)}
+              onInstall={(skillId) => handleInstallCustomSkill(tab.registryId, skillId)}
+              installingIds={installingIds}
+              onOpenDetail={openDetailSkill}
+            />
+          );
+        })}
+
       </div>
 
       {/* Skill Detail Drawer */}
@@ -831,16 +794,17 @@ export function MarketplaceView() {
               const parts = detailSkill.id.split(":");
               void handleInstallSkillsSh(parts[1], parts.slice(2).join(":"));
             } else {
-              handleInstallPreviewSkill({ id: detailSkill.id, name: detailSkill.name, downloadUrl: detailSkill.downloadUrl });
+              // Custom market or other — use the general install flow
+              void handleInstallFromSource(detailSkill.id);
             }
           }}
           isInstalling={(() => {
             if (detailSkill.id.startsWith("skillssh:")) {
               const parts = detailSkill.id.split(":");
               const rawId = parts.slice(2).join(":");
-              return installingIds.has(rawId) || previewInstallingIds.has(detailSkill.name);
+              return installingIds.has(rawId);
             }
-            return installingIds.has(detailSkill.id) || previewInstallingIds.has(detailSkill.name);
+            return installingIds.has(detailSkill.id);
           })()}
           onAfterCloseFocus={() => {
             detailTriggerRef.current?.focus();
@@ -872,6 +836,12 @@ export function MarketplaceView() {
           setGitHubRepoUrl("");
         }}
         launcherLabel={t("marketplace.title")}
+      />
+
+      <AddCustomMarketDialog
+        open={isAddCustomMarketOpen}
+        onOpenChange={setIsAddCustomMarketOpen}
+        onAdd={handleAddCustomMarket}
       />
     </div>
   );

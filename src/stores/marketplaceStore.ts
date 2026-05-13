@@ -53,6 +53,9 @@ interface MarketplaceState {
   skillsShResults: SkillsShSkill[];
   skillsShQuery: string;
   isSkillsShLoading: boolean;
+  // Custom market tabs (git sources)
+  customSkillsByRegistry: Record<string, MarketplaceSkill[]>;
+  isCustomSyncing: Set<string>;
 
   loadRegistries: () => Promise<void>;
   selectRegistry: (id: string) => void;
@@ -84,6 +87,10 @@ interface MarketplaceState {
   // skills.sh search
   searchSkillsSh: (query: string) => Promise<void>;
   installFromSkillsSh: (source: string, skillId: string) => Promise<void>;
+  // Custom market
+  syncCustomRegistry: (registryId: string) => Promise<void>;
+  loadCustomSkills: (registryId: string) => Promise<void>;
+  removeCustomRegistry: (registryId: string) => Promise<void>;
 }
 
 const initialGitHubImportState = (): GitHubImportState => ({
@@ -154,6 +161,8 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
   skillsShResults: [],
   skillsShQuery: "",
   isSkillsShLoading: false,
+  customSkillsByRegistry: {},
+  isCustomSyncing: new Set<string>(),
 
   getNormalizedRegistryIdentity: (url: string) => {
     const trimmed = url.trim();
@@ -694,6 +703,65 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
       });
       throw err;
     }
+  },
+
+  // ── Custom Market ───────────────────────────────────────────────────────
+
+  syncCustomRegistry: async (registryId: string) => {
+    set((s) => ({
+      isCustomSyncing: new Set(s.isCustomSyncing).add(registryId),
+      error: null,
+    }));
+    try {
+      const skills = await invoke<MarketplaceSkill[]>("sync_registry", { registryId });
+      const registries = await invoke<SkillRegistry[]>("list_registries");
+      set((s) => ({
+        customSkillsByRegistry: { ...s.customSkillsByRegistry, [registryId]: skills ?? [] },
+        registries: registries ?? [],
+        isCustomSyncing: (() => {
+          const next = new Set(s.isCustomSyncing);
+          next.delete(registryId);
+          return next;
+        })(),
+      }));
+    } catch (err) {
+      set((s) => ({
+        error: String(err),
+        isCustomSyncing: (() => {
+          const next = new Set(s.isCustomSyncing);
+          next.delete(registryId);
+          return next;
+        })(),
+      }));
+      throw err;
+    }
+  },
+
+  loadCustomSkills: async (registryId: string) => {
+    try {
+      const skills = await invoke<MarketplaceSkill[]>("search_marketplace_skills", {
+        registryId,
+        query: null,
+      });
+      set((s) => ({
+        customSkillsByRegistry: { ...s.customSkillsByRegistry, [registryId]: skills ?? [] },
+      }));
+    } catch (err) {
+      set({ error: String(err) });
+    }
+  },
+
+  removeCustomRegistry: async (registryId: string) => {
+    await invoke("remove_registry", { registryId });
+    const registries = await invoke<SkillRegistry[]>("list_registries");
+    set((s) => {
+      const { [registryId]: _, ...rest } = s.customSkillsByRegistry;
+      return {
+        registries: registries ?? [],
+        selectedRegistryId: s.selectedRegistryId === registryId ? null : s.selectedRegistryId,
+        customSkillsByRegistry: rest,
+      };
+    });
   },
 
   resetGitHubImport: () => {

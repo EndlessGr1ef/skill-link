@@ -649,6 +649,14 @@
     "githubImportResultSkippedTitle": "已跳过项目",
     "githubImportResultSkippedNone": "没有跳过任何技能。",
     "githubPatSettingsHint": "请前往设置并保存 GitHub Personal Access Token，让该导入流程改用经过认证的直连 GitHub 请求。",
-    "genericGitAuthHint": "请确保已配置 Git 凭证：SSH 密钥、credential helper 或 .netrc。URL 必须是有效的 Git 克隆地址，而非网页浏览地址。"
+    "genericGitAuthHint": "请确保已配置 Git 凭证：SSH 密钥、credential helper 或 .netrc。URL 必须是有效的 Git 克隆地址，而非网页浏览地址。",
+    "addCustomMarket": "添加自定义市场",
+    "addCustomMarketDesc": "输入 Git 仓库地址，将其作为独立的技能市场 Tab 添加。",
+    "repoUrl": "仓库 URL",
+    "displayName": "显示名称",
+    "autoDerivedName": "自动从 URL 推导",
+    "customMarketNoSkills": "该市场暂无缓存技能",
+    "customMarketRemoving": "删除市场",
+    "skillFind": "Skill Find"
   }
 }

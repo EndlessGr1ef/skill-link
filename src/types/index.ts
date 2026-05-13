@@ -255,7 +255,7 @@ export interface DiscoverImportResult {
 export interface SkillRegistry {
   id: string;
   name: string;
-  source_type: "github" | "http_json";
+  source_type: "github" | "http_json" | "git";
   url: string;
   normalized_url?: string | null;
   is_builtin: boolean;

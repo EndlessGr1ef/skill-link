@@ -37,14 +37,14 @@ impl std::fmt::Display for GitHost {
     }
 }
 
-struct TempDirGuard(PathBuf);
+pub(crate) struct TempDirGuard(PathBuf);
 
 impl TempDirGuard {
-    fn new(path: PathBuf) -> Self {
+    pub(crate) fn new(path: PathBuf) -> Self {
         Self(path)
     }
 
-    fn path(&self) -> &Path {
+    pub(crate) fn path(&self) -> &Path {
         &self.0
     }
 }
@@ -58,7 +58,7 @@ impl Drop for TempDirGuard {
 }
 
 /// Detect whether a URL points to GitHub or a generic Git server.
-fn detect_git_host(url: &str) -> GitHost {
+pub(crate) fn detect_git_host(url: &str) -> GitHost {
     let trimmed = url.trim();
     if let Ok(parsed) = reqwest::Url::parse(trimmed) {
         if parsed.host_str() == Some("github.com") {
@@ -73,7 +73,7 @@ fn detect_git_host(url: &str) -> GitHost {
 }
 
 /// Parse branch from URL fragment (#branch) or return None for default.
-fn extract_branch_from_url(url: &str) -> (String, Option<String>) {
+pub(crate) fn extract_branch_from_url(url: &str) -> (String, Option<String>) {
     let trimmed = url.trim();
     // Handle #branch suffix
     if let Some(hash_pos) = trimmed.rfind('#') {
@@ -193,7 +193,7 @@ fn validate_branch_name(branch: &str) -> Result<(), String> {
 
 /// Clone a git repository to a temporary directory with `--depth 1`.
 /// Returns a `TempDirGuard` that auto-cleans the temp directory on drop.
-fn clone_repo_to_temp(url: &str, branch: Option<&str>, host: &GitHost) -> Result<TempDirGuard, String> {
+pub(crate) fn clone_repo_to_temp(url: &str, branch: Option<&str>, host: &GitHost) -> Result<TempDirGuard, String> {
     let clone_url = normalize_git_clone_url(url);
     validate_git_url(&clone_url)?;
     if let Some(branch) = branch {
@@ -275,7 +275,7 @@ fn clone_repo_to_temp(url: &str, branch: Option<&str>, host: &GitHost) -> Result
 const MAX_FILE_SIZE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB per file
 const MAX_TOTAL_SNAPSHOT_BYTES: u64 = 500 * 1024 * 1024; // 500 MB total
 
-fn snapshot_from_local_dir(dir: &Path) -> Result<HashMap<String, Vec<u8>>, String> {
+pub(crate) fn snapshot_from_local_dir(dir: &Path) -> Result<HashMap<String, Vec<u8>>, String> {
     let mut files = HashMap::new();
     let mut total_bytes: u64 = 0;
     collect_files_recursive(dir, dir, &mut files, &mut total_bytes)?;
@@ -338,7 +338,7 @@ fn collect_files_recursive(
 
 /// Build skill candidates from a local directory snapshot.
 /// Similar to `build_repo_skill_candidates_from_snapshot` but for generic git repos.
-fn build_candidates_from_local_snapshot(
+pub(crate) fn build_candidates_from_local_snapshot(
     repo_url: &str,
     files: &HashMap<String, Vec<u8>>,
 ) -> Result<Vec<RemoteSkillCandidate>, String> {
@@ -395,7 +395,7 @@ fn build_candidates_from_local_snapshot(
 }
 
 /// Extract a human-readable repo name from a git URL.
-fn extract_repo_name_from_url(url: &str) -> String {
+pub(crate) fn extract_repo_name_from_url(url: &str) -> String {
     let trimmed = url.trim();
 
     // Handle SSH URLs: git@host:owner/repo.git
@@ -431,7 +431,7 @@ fn extract_repo_name_from_url(url: &str) -> String {
 }
 
 /// Build a `GitHubRepoRef`-compatible struct from a generic git URL.
-fn build_repo_ref_from_url(url: &str, branch: Option<&str>) -> Result<GitHubRepoRef, String> {
+pub(crate) fn build_repo_ref_from_url(url: &str, branch: Option<&str>) -> Result<GitHubRepoRef, String> {
     let (clean_url, url_branch) = extract_branch_from_url(url);
     let effective_branch = branch
         .map(|b| b.to_string())
@@ -477,7 +477,7 @@ fn extract_owner_from_url(url: &str) -> String {
 }
 
 /// Strip embedded credentials (username:password@) from a URL for safe display/storage.
-fn strip_credentials_from_url(url: &str) -> String {
+pub(crate) fn strip_credentials_from_url(url: &str) -> String {
     if let Ok(mut parsed) = reqwest::Url::parse(url) {
         let had_creds = !parsed.username().is_empty() || parsed.password().is_some();
         if had_creds {
@@ -492,7 +492,7 @@ fn strip_credentials_from_url(url: &str) -> String {
 
 /// Source field for DB: "github:owner/repo" or "git:url"
 /// Credentials are stripped before storage.
-fn build_source_field(host: &GitHost, repo: &GitHubRepoRef) -> String {
+pub(crate) fn build_source_field(host: &GitHost, repo: &GitHubRepoRef) -> String {
     match host {
         GitHost::GitHub => format!("github:{}/{}", repo.owner, repo.repo),
         GitHost::Generic => format!("git:{}", strip_credentials_from_url(&repo.normalized_url)),
@@ -502,7 +502,7 @@ fn build_source_field(host: &GitHost, repo: &GitHubRepoRef) -> String {
 // ─── File Operations for Generic Git Repos ───────────────────────────────────
 
 /// Collect source files from a local directory snapshot for a given skill source_path.
-fn collect_local_source_files(
+pub(crate) fn collect_local_source_files(
     files: &HashMap<String, Vec<u8>>,
     source_path: &str,
 ) -> Result<Vec<SnapshotSourceFile>, String> {
@@ -541,7 +541,7 @@ fn collect_local_source_files(
 }
 
 /// Write files from a local snapshot to the target directory.
-fn write_local_source_to_target(
+pub(crate) fn write_local_source_to_target(
     files: &HashMap<String, Vec<u8>>,
     source_files: &[SnapshotSourceFile],
     target_dir: &Path,

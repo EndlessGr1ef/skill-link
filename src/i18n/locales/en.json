@@ -649,6 +649,14 @@
     "githubImportResultSkippedTitle": "Skipped items",
     "githubImportResultSkippedNone": "No skills were skipped.",
     "githubPatSettingsHint": "Open Settings and save a GitHub Personal Access Token to use authenticated direct GitHub requests for this import flow.",
-    "genericGitAuthHint": "Make sure your Git credentials are configured: SSH key, credential helper, or .netrc. The URL must be a valid Git clone URL, not a web browsing page."
+    "genericGitAuthHint": "Make sure your Git credentials are configured: SSH key, credential helper, or .netrc. The URL must be a valid Git clone URL, not a web browsing page.",
+    "addCustomMarket": "Add Custom Market",
+    "addCustomMarketDesc": "Enter a Git repo URL to add it as an independent skill market tab.",
+    "repoUrl": "Repository URL",
+    "displayName": "Display Name",
+    "autoDerivedName": "Auto-derived from URL",
+    "customMarketNoSkills": "No cached skills for this market",
+    "customMarketRemoving": "Remove market",
+    "skillFind": "Skill Find"
   }
 }
