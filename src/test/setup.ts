@@ -43,6 +43,25 @@ vi.mock("react-i18next", () => ({
   Trans: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Polyfill localStorage for jsdom (does not provide it by default)
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = String(value); },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { store = {}; },
+    get length() { return Object.keys(store).length; },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+  };
+})();
+
+Object.defineProperty(globalThis, "localStorage", {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+});
+
 // Polyfill PointerEvent for base-ui components in jsdom
 // base-ui's Checkbox/Radio use PointerEvent internally which jsdom doesn't support
 if (!global.PointerEvent) {

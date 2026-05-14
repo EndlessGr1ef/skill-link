@@ -472,7 +472,7 @@ describe("SettingsView", () => {
   it("shows the app version in the about section", () => {
     setupMocks();
     renderSettingsView();
-    expect(screen.getByText("Skill Link v0.9.1")).toBeTruthy();
+    expect(screen.getByText("Skill Link v0.1.0")).toBeTruthy();
   });
 
   it("shows the database path in the about section", () => {

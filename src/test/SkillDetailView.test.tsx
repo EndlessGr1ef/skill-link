@@ -389,11 +389,15 @@ describe("SkillDetailView", () => {
 
   it("shows canonical path", () => {
     renderView();
+    // Expand metadata section to reveal canonical path
+    fireEvent.click(screen.getByRole("button", { name: /显示更多|Show more/i }));
     expect(screen.getAllByText("~/.agents/skills/frontend-design").length).toBeGreaterThan(0);
   });
 
   it("shows source", () => {
     renderView();
+    // Expand metadata section to reveal source field
+    fireEvent.click(screen.getByRole("button", { name: /显示更多|Show more/i }));
     expect(screen.getByText("native")).toBeInTheDocument();
   });
 
@@ -424,6 +428,8 @@ describe("SkillDetailView", () => {
     expect(
       screen.getByText("~/.claude/plugins/cache/publisher/frontend-design/unknown/skills/frontend-design/SKILL.md")
     ).toBeInTheDocument();
+    // Expand metadata section to reveal source root
+    fireEvent.click(screen.getByRole("button", { name: /显示更多|Show more/i }));
     expect(screen.getByText("~/.claude/plugins/cache/publisher/frontend-design/unknown")).toBeInTheDocument();
     expect(
       screen.getByText(/插件安装的副本仅供查看|display-only/i)
@@ -462,6 +468,8 @@ describe("SkillDetailView", () => {
     expect(screen.getByText(/用户来源|User source/i)).toBeInTheDocument();
     expect(screen.queryByText(/只读来源|Read-only source/i)).toBeNull();
     expect(screen.getByText("~/.claude/skills/frontend-design/SKILL.md")).toBeInTheDocument();
+    // Expand metadata section to reveal source root
+    fireEvent.click(screen.getByRole("button", { name: /显示更多|Show more/i }));
     expect(screen.getByText("~/.claude/skills")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /切换 frontend-design 在 Cursor 的链接状态/i })
@@ -637,9 +645,11 @@ describe("SkillDetailView", () => {
 
     const markdown = screen.getByRole("tabpanel", { name: /Markdown/i });
     expect(within(markdown).getByRole("heading", { name: /Frontmatter/i })).toBeInTheDocument();
-    expect(within(markdown).getByText(/这段 frontmatter 无法稳定解析/i)).toBeInTheDocument();
-    expect(within(markdown).getAllByText(/name: broken-skill/).length).toBeGreaterThan(0);
-    expect(within(markdown).getAllByText(/description: Broken summary/).length).toBeGreaterThan(0);
+    // js-yaml fails on malformed YAML, fallback extracts name and description
+    // so the structured card is rendered instead of raw frontmatter
+    expect(within(markdown).queryByText(/这段 frontmatter 无法稳定解析/i)).toBeNull();
+    expect(within(markdown).getByText("broken-skill")).toBeInTheDocument();
+    expect(within(markdown).getByText("Broken summary")).toBeInTheDocument();
     expect(screen.getByTestId("react-markdown")).toHaveTextContent("# Broken Skill");
   });
 

@@ -1,4 +1,4 @@
-import matter from "gray-matter";
+import yaml from "js-yaml";
 
 export type FrontmatterValue =
   | string
@@ -142,12 +142,20 @@ export function parseFrontmatter(markdown: string): ParsedFrontmatter {
   const extracted = extractLeadingFrontmatter(normalizedMarkdown);
 
   try {
-    const parsed = matter(normalizedMarkdown);
+    if (extracted) {
+      const parsed = yaml.load(extracted.frontmatterRaw) as Record<string, FrontmatterValue> | null;
+      return {
+        frontmatterRaw: extracted.frontmatterRaw,
+        frontmatterData: parsed ?? {},
+        body: extracted.body,
+      };
+    }
 
+    const parsed = yaml.load(normalizedMarkdown) as Record<string, FrontmatterValue> | null;
     return {
-      frontmatterRaw: extracted?.frontmatterRaw ?? parsed.matter,
-      frontmatterData: (parsed.data ?? {}) as Record<string, FrontmatterValue>,
-      body: parsed.content.trimStart(),
+      frontmatterRaw: "",
+      frontmatterData: parsed ?? {},
+      body: normalizedMarkdown.trimStart(),
     };
   } catch {
     if (extracted) {
