@@ -1343,17 +1343,34 @@ pub fn parse_source(source: &Option<String>) -> Option<(&str, &str)> {
 }
 
 /// Update the source_ref (commit SHA) for a skill after an update.
+/// Update the source_ref (commit SHA) for a skill after an update.
 pub async fn update_skill_source_ref(
     pool: &DbPool,
     skill_id: &str,
     source_ref: &str,
+) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE skills SET source_ref = ? WHERE id = ?",
+    )
+    .bind(source_ref)
+    .bind(skill_id)
+    .execute(pool)
+    .await
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+/// Update skill name and description from new frontmatter after an update.
+/// This is always called regardless of whether latest_sha is available.
+pub async fn update_skill_name_and_description(
+    pool: &DbPool,
+    skill_id: &str,
     name: &str,
     description: Option<&str>,
 ) -> Result<(), String> {
     sqlx::query(
-        "UPDATE skills SET source_ref = ?, name = ?, description = ? WHERE id = ?",
+        "UPDATE skills SET name = ?, description = ? WHERE id = ?",
     )
-    .bind(source_ref)
     .bind(name)
     .bind(description)
     .bind(skill_id)
@@ -1416,6 +1433,20 @@ pub async fn get_update_check_cache(
             error_message: r.get("error_message"),
         }
     }))
+}
+
+/// Delete the update check cache entry for a skill.
+/// Called after a successful skill update so the next check is fresh.
+pub async fn delete_update_check_cache(
+    pool: &DbPool,
+    skill_id: &str,
+) -> Result<(), String> {
+    sqlx::query("DELETE FROM update_check_cache WHERE skill_id = ?")
+        .bind(skill_id)
+        .execute(pool)
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 pub async fn upsert_update_check_cache(

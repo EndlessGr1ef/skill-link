@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useCentralSkillsStore } from "@/stores/centralSkillsStore";
 import { usePlatformStore } from "@/stores/platformStore";
 import { useSkillStore } from "@/stores/skillStore";
+import { useSkillDetailStore } from "@/stores/skillDetailStore";
 import { UnifiedSkillCard } from "@/components/skill/UnifiedSkillCard";
 import { SkillDetailDrawer } from "@/components/skill/SkillDetailDrawer";
 import { InstallDialog } from "@/components/central/InstallDialog";
@@ -205,6 +206,9 @@ export function CentralSkillsView() {
   const checkUpdates = useCentralSkillsStore((state) => state.checkUpdates);
   const updateSkillAction = useCentralSkillsStore((state) => state.updateSkill);
 
+  // Detail drawer refresh after skill update.
+  const loadDetail = useSkillDetailStore((state) => state.loadDetail);
+
   // Keep the platform sidebar counts in sync after install.
   const refreshCounts =
     usePlatformStore((state) => state.refreshCounts) ?? noopRefreshCounts;
@@ -385,6 +389,17 @@ export function CentralSkillsView() {
     try {
       await updateSkillAction(skillId);
       toast.success(t("central.updateSuccess"));
+
+      // Bug 3 fix: refresh the detail drawer if it's open for this skill.
+      if (drawerSkillId === skillId) {
+        await loadDetail({ skillId });
+      }
+
+      // Bug 4 fix: refresh platform skill lists so they show updated name/description.
+      const loadedAgentIds = Object.keys(skillsByAgent);
+      if (loadedAgentIds.length > 0) {
+        await Promise.all(loadedAgentIds.map((agentId) => getSkillsByAgent(agentId)));
+      }
     } catch (err) {
       toast.error(t("central.updateError", { error: String(err) }));
     }

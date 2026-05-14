@@ -439,19 +439,26 @@ async fn update_skill_impl(pool: &db::DbPool, skill_id: &str) -> Result<String, 
         }
     }
 
-    // 6. Update DB with new source_ref and frontmatter
+    // 6. Always update name and description from the new frontmatter.
+    //    This must happen regardless of whether we obtained a latest SHA,
+    //    because the files on disk have already been replaced atomically.
+    db::update_skill_name_and_description(
+        pool,
+        skill_id,
+        &frontmatter.name,
+        frontmatter.description.as_deref(),
+    )
+    .await?;
+
+    //    Only update source_ref when we have a valid SHA.
     if let Some(ref sha) = latest_sha {
-        db::update_skill_source_ref(
-            pool,
-            skill_id,
-            sha,
-            &frontmatter.name,
-            frontmatter.description.as_deref(),
-        )
-        .await?;
+        db::update_skill_source_ref(pool, skill_id, sha).await?;
     }
 
-    // 7. Clean old backups (keep last 3)
+    // 7. Clear stale update check cache so the next check is fresh.
+    let _ = db::delete_update_check_cache(pool, skill_id).await;
+
+    // 8. Clean old backups (keep last 3)
     cleanup_old_backups(skill_id, 3)?;
 
     Ok(skill_id.to_string())
