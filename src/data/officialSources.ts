@@ -50,22 +50,6 @@ export const RECOMMENDED_SKILLS: RecommendedSkill[] = [
     downloadUrl: "https://raw.githubusercontent.com/anthropics/skills/main/skills/frontend-design/SKILL.md",
   },
   {
-    name: "expo-dev-client",
-    description: "Build and distribute Expo development clients locally or via TestFlight",
-    publisher: "Expo",
-    repoFullName: "expo/skills",
-    tags: ["mobile"],
-    downloadUrl: "https://raw.githubusercontent.com/expo/skills/main/plugins/expo/skills/expo-dev-client/SKILL.md",
-  },
-  {
-    name: "deno-expert",
-    description: "Expert-level Deno knowledge for code review, debugging, and best practice enforcement",
-    publisher: "Deno",
-    repoFullName: "denoland/skills",
-    tags: ["backend"],
-    downloadUrl: "https://raw.githubusercontent.com/denoland/skills/main/skills/deno-expert/SKILL.md",
-  },
-  {
     name: "redis-development",
     description: "Redis performance optimization and best practices — data structures, Query Engine, vector search, semantic caching",
     publisher: "Redis",
