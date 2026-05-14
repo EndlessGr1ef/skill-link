@@ -113,6 +113,14 @@ export const RECOMMENDED_SKILLS: RecommendedSkill[] = [
     tags: ["workflow"],
     downloadUrl: "https://raw.githubusercontent.com/OthmanAdi/planning-with-files/master/skills/planning-with-files/SKILL.md",
   },
+  {
+    name: "talk-normal",
+    description: "Curated system prompt that cuts verbose AI slop by 56-71% while preserving information — installs as always-on behavior modifier into AGENTS.md",
+    publisher: "hexiecs",
+    repoFullName: "hexiecs/talk-normal",
+    tags: ["best-practices"],
+    downloadUrl: "https://raw.githubusercontent.com/hexiecs/talk-normal/main/skill/SKILL.md",
+  },
 ];
 
 // ─── All Tags (auto-derived from RECOMMENDED_SKILLS) ──────────────────────────
