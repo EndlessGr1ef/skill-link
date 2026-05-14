@@ -261,14 +261,14 @@ describe("MarketplaceView", () => {
     renderView();
 
     expect(screen.getByRole("button", { name: /Recommended|推荐/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "web-artifacts-builder" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "frontend-design" })).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/Search skills|搜索技能/i), {
-      target: { value: "frontend-design" },
+      target: { value: "redis-development" },
     });
 
-    expect(screen.getByRole("button", { name: "frontend-design" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "web-artifacts-builder" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "redis-development" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "frontend-design" })).not.toBeInTheDocument();
   });
 
   // ⚠ PRB: UI has been restructured, no longer uses Official Directory/Publisher/Browse pattern
