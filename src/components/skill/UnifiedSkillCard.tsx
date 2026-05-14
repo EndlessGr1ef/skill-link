@@ -12,7 +12,7 @@ import {
   Loader2,
   Lock,
   Clock,
-  ArrowUpCircle,
+  GitPullRequest,
 } from "lucide-react";
 import type { MouseEventHandler, Ref } from "react";
 import { useTranslation } from "react-i18next";
@@ -443,7 +443,7 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
               className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
               title={updateStatus.commit_message ?? t("central.updateAvailable")}
             >
-              <ArrowUpCircle className="size-3.5 shrink-0" />
+              <GitPullRequest className="size-3.5 shrink-0" />
               {t("central.updateAvailable")}
             </button>
           )}

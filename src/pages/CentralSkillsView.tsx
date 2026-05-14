@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Search, RefreshCw, Blocks, FolderOpen, Settings, ArrowUpDown, Eye, EyeOff, ArrowUpCircle, Loader2 } from "lucide-react";
+import { Search, RefreshCw, Blocks, FolderOpen, Settings, ArrowUpDown, Eye, EyeOff, ScanSearch, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -543,7 +543,7 @@ export function CentralSkillsView() {
               {isCheckingUpdates ? (
                 <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <ArrowUpCircle className="size-3.5" />
+                <ScanSearch className="size-3.5" />
               )}
               {t("central.checkUpdates")}
             </Button>

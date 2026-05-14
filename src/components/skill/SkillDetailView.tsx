@@ -16,7 +16,6 @@ import {
   Monitor,
   FolderOpen,
   Lock,
-  ArrowUpCircle,
   ExternalLink,
   Link2,
   Folder,
@@ -24,6 +23,9 @@ import {
   X,
   Eye,
   EyeOff,
+  CloudDownload,
+  BadgeCheck,
+  ScanSearch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
@@ -1180,7 +1182,7 @@ export function SkillDetailView({
                           )}
                           {skillUpdateStatus?.type === "UpToDate" && (
                             <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-                              <ArrowUpCircle className="size-3" />
+                              <BadgeCheck className="size-3" />
                               {t("detail.upToDate", {
                                 defaultValue: i18n.language.startsWith("zh") ? "已是最新" : "Up to date",
                               })}
@@ -1193,7 +1195,7 @@ export function SkillDetailView({
                               onClick={handleCheckUpdateForSkill}
                               className="gap-1 text-xs text-muted-foreground hover:text-foreground h-6 px-2"
                             >
-                              <RefreshCw className="size-3" />
+                              <ScanSearch className="size-3" />
                               {t("central.checkUpdates")}
                             </Button>
                           )}
@@ -1463,7 +1465,7 @@ export function SkillDetailView({
                           {isUpdating ? (
                             <Loader2 className="size-3.5 animate-spin" />
                           ) : (
-                            <ArrowUpCircle className="size-3.5" />
+                            <CloudDownload className="size-3.5" />
                           )}
                           {isUpdating
                             ? t("central.updating", { defaultValue: "Updating..." })
