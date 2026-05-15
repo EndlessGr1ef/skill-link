@@ -390,7 +390,7 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
             <div className="space-y-1 mt-auto pt-1">
               {lobsterAgents.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider w-14 shrink-0">
+                  <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider w-20 shrink-0 whitespace-nowrap">
                     {t("sidebar.categoryLobster")}
                   </span>
                   <div className="flex items-center gap-0.5 flex-wrap">
@@ -409,7 +409,7 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
               )}
               {codingAgents.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider w-14 shrink-0">
+                  <span className="text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wider w-20 shrink-0 whitespace-nowrap">
                     {t("sidebar.categoryCoding")}
                   </span>
                   <div className="flex items-center gap-0.5 flex-wrap">

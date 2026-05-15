@@ -36,6 +36,7 @@ Skill Link treats `~/.agents/skills/` as the canonical source of truth. From the
 
 Recent work has moved Skill Link from a basic cross-platform installer into a fuller skill lifecycle tool:
 
+- **0.2.0 release** - custom Git markets, generic Git repository imports, clearer skill update UI, dynamic-link indicators, and a Central card layout fix for the AI Assistant platform group.
 - **Project installs** - central skills can now be linked into a selected project using each platform's project skill directory convention.
 - **Custom path installs** - a skill can be linked or copied into an arbitrary target directory when a tool is not built in yet.
 - **GitHub update flow** - imported skills remember source repo, source path, branch/ref, and installed commit, so Skill Link can compare against the latest upstream commit.
@@ -84,6 +85,7 @@ Recent work has moved Skill Link from a basic cross-platform installer into a fu
 ## Download
 
 - Latest release: <https://github.com/EndlessGr1ef/skill-link/releases/latest>
+- Current version: 0.2.0
 - Current prebuilt packages: Apple Silicon macOS (`.dmg` and `.app.zip`)
 - Other platforms: run from source for now
 
