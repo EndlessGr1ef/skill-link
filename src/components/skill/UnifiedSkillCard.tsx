@@ -251,6 +251,8 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
               </h3>
             )}
 
+            {updatedAt && <TimeBadge iso={updatedAt} className="shrink-0" />}
+
             {/* Icon action buttons */}
             {hasActions && (
               <div className="flex items-center gap-0.5 shrink-0">
@@ -431,25 +433,20 @@ export function UnifiedSkillCard(props: UnifiedSkillCardProps) {
         </div>
       </div>
 
-      {/* Bottom: update badge + updated time */}
-      {(updateStatus?.type === "UpdateAvailable" || updatedAt) && (
-        <div className="flex items-center justify-between mt-1">
-          {updateStatus?.type === "UpdateAvailable" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdate?.();
-              }}
-              className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
-              title={updateStatus.commit_message ?? t("central.updateAvailable")}
-            >
-              <GitPullRequest className="size-3.5 shrink-0" />
-              {t("central.updateAvailable")}
-            </button>
-          )}
-          {updatedAt && (
-            <TimeBadge iso={updatedAt} className={updateStatus?.type === "UpdateAvailable" ? "" : "ml-auto"} />
-          )}
+      {/* Bottom: update badge */}
+      {updateStatus?.type === "UpdateAvailable" && (
+        <div className="flex items-center mt-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdate?.();
+            }}
+            className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+            title={updateStatus.commit_message ?? t("central.updateAvailable")}
+          >
+            <GitPullRequest className="size-3.5 shrink-0" />
+            {t("central.updateAvailable")}
+          </button>
         </div>
       )}
     </div>
